@@ -97,8 +97,7 @@ body, table, td {
 }
 #archive-blocks {
   border-collapse: collapse;
-  width: 100%;
-  max-width: 700px;
+  width: 80%;
   margin: 0 auto;
   border: 1px solid #ccc;
   margin-top: 10px;

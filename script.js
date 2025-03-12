@@ -129,6 +129,11 @@
           tdBlock.addEventListener("mousedown",handleMouseDown);
           tdBlock.addEventListener("mouseover",handleMouseOver);
           tdBlock.addEventListener("mouseup",handleMouseUp);
+
+          // Add mobile touch event listeners
+          tdBlock.addEventListener("touchstart", handleTouchStart, { passive: false });
+          tdBlock.addEventListener("touchmove", handleTouchMove, { passive: false });
+          tdBlock.addEventListener("touchend", handleTouchEnd, { passive: false });
           tr.appendChild(tdBlock);
   
           dailyBody.appendChild(tr);
@@ -395,6 +400,48 @@
           showBlockPopup(null);
         }
       }
+      // ==============================
+      // Touch handlers for mobile drag
+      // ==============================
+      function handleTouchStart(e){
+        // Prevent default so we can manage the touch ourselves
+        e.preventDefault();
+        if(e.touches.length > 0){
+          // Figure out which element is being touched
+          const touch = e.touches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          if(target){
+            // Fake a "mousedown" event
+            handleMouseDown({ target });
+          }
+        }
+      }
+
+      function handleTouchMove(e){
+        e.preventDefault();
+        if(e.touches.length > 0){
+          const touch = e.touches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          if(target){
+            // Fake a "mouseover" event
+            handleMouseOver({ target });
+          }
+        }
+      }
+
+      function handleTouchEnd(e){
+        e.preventDefault();
+        // Usually changedTouches has the last known position
+        if(e.changedTouches.length > 0){
+          const touch = e.changedTouches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          if(target){
+            // Fake a "mouseup" event 
+            handleMouseUp({ target });
+          }
+        }
+      }
+
       function markSelectedRange(){
         if(!startCell||!endCell)return;
         const startRow=startCell.parentElement.rowIndex;
