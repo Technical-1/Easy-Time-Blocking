@@ -88,6 +88,15 @@
         displayDailyBlocks();
         highlightCurrentTime();
       });
+      btnDaily.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        dailyView.classList.add("active");
+        archiveView.classList.remove("active");
+        settingsOverlay.classList.remove("active");
+        updateDailySubheader();
+        displayDailyBlocks();
+        highlightCurrentTime();
+      }, { passive: false });
   
       btnArchive.addEventListener("click", () => {
         dailyView.classList.remove("active");
@@ -95,17 +104,49 @@
         archiveView.classList.add("active");
         buildArchiveList();
       });
+      btnArchive.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        dailyView.classList.remove("active");
+        settingsOverlay.classList.remove("active");
+        archiveView.classList.add("active");
+        buildArchiveList();
+      }, { passive: false });
   
       btnSettings.addEventListener("click", (e) => { e.preventDefault(); showSettings(); });
+      btnSettings.addEventListener("touchend", (e) => {e.preventDefault(); showSettings();}, { passive: false });
+      
       closeSettingsBtn.addEventListener("click", hideSettings);
+      closeSettingsBtn.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        hideSettings();
+      }, { passive: false });
   
       addTaskBtn.addEventListener("click", () => addTaskRow(""));
+      addTaskBtn.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        addTaskRow("");
+      }, { passive: false });
+
       recurringCheckbox.addEventListener("change", () => {
         recurrenceDaysDiv.style.display = recurringCheckbox.checked ? "flex" : "none";
       });
       saveBtn.addEventListener("click", handleSaveBlock);
+      saveBtn.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        handleSaveBlock();
+      }, { passive: false });
+
       deleteBtn.addEventListener("click", handleDeleteBlock);
+      deleteBtn.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        handleDeleteBlock();
+      }, { passive: false });
+
       closePopupBtn.addEventListener("click", hideOverlay);
+      closePopupBtn.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        hideOverlay();
+      }, { passive: false });
   
       /***************************************************
        * Daily
@@ -599,6 +640,11 @@
           editBlockId=block.id;
           showBlockPopup(block);
         });
+        titleDiv.addEventListener("touchend",(e)=>{
+          e.preventDefault();
+          editBlockId=block.id;
+          showBlockPopup(block);
+        }, { passive: false });
         cell.appendChild(titleDiv);
   
         const tasksBox=document.createElement("div");
@@ -695,6 +741,7 @@
         removeBtn.style.border="none";
         removeBtn.style.cursor="pointer";
         removeBtn.addEventListener("click",()=> rowDiv.remove());
+        removeBtn.addEventListener("touchend",()=> rowDiv.remove());
         rowDiv.appendChild(removeBtn);
   
         taskListContainer.appendChild(rowDiv);
@@ -802,6 +849,7 @@
           removeBtn.style.border="none";
           removeBtn.style.cursor="pointer";
           removeBtn.addEventListener("click",()=> rowDiv.remove());
+          removeBtn.addEventListener("touchend",()=> rowDiv.remove());
           rowDiv.appendChild(removeBtn);
   
           colorsContainer.appendChild(rowDiv);
