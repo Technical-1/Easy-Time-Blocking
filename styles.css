@@ -60,7 +60,8 @@ body, table, td {
 #daily-view table {
   border-collapse: collapse;
   width: 100%;
-  max-width: 700px;
+  height: 100%;
+  max-width: 50%;
   margin: 0 auto;
 }
 #daily-view th, #daily-view td {
@@ -330,7 +331,8 @@ body, table, td {
   #daily-view table, 
   #archive-blocks {
       font-size: 0.9rem;
-      width: 150%;
+      width: 100%;
+      max-width: 100%;
       overflow-x: auto; /* allow horizontal scroll if needed */
   }
   #daily-view th:first-child, 
