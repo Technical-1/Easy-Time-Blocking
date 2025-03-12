@@ -403,9 +403,11 @@
         const maxR=Math.max(startRow,endRow);
   
         const dailyBody=document.getElementById("daily-body");
-        for(let r=minR;r<=maxR;r++){
+        for (let r = minR; r <= maxR; r++) {
+          if (!dailyBody.rows[r]) break;
+          if (!dailyBody.rows[r].cells[1]) continue;
           dailyBody.rows[r].cells[1].classList.add("selected");
-        }
+      }
       }
       function clearSelectedCells(){
         document.querySelectorAll("td.selected").forEach(td=>td.classList.remove("selected"));
