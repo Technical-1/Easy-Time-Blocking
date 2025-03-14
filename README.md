@@ -35,3 +35,13 @@ A simple web-based time-blocking (scheduling) application that allows you to:
 6. **Mobile Friendly**:  
    - Touch-drag is supported for creating new blocks.  
    - Tapping on checkboxes or notes areas is recognized to allow edits.
+
+---
+
+## Technical Details
+### Local Storage:
+#### Data is saved as JSON in localStorage:
+- timeBlocks for the main schedule.
+- archivedBlocks for older days.
+- colorPresets for user-defined block colors.
+- hiddenTimes for time slots you prefer to hide.
