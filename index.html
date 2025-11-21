@@ -8,17 +8,31 @@
 </head>
 <body>
   <header>
-    <h1>Time-Blocking</h1>
-    <div class="view-buttons">
-      <button id="btn-daily" type="button">Daily View</button>
-      <button id="btn-archive" type="button">Archive</button>
-      <button id="btn-settings" type="button">Settings</button>
+    <div class="header-content">
+      <h1>Time-Blocking</h1>
+      <div class="search-container" style="display: none;" id="search-container">
+        <input type="text" id="search-input" placeholder="Search blocks..." />
+        <button id="close-search-btn">✖</button>
+      </div>
+      <div class="view-buttons">
+        <button id="btn-daily" type="button">Daily View</button>
+        <button id="btn-statistics" type="button">Statistics</button>
+        <button id="btn-archive" type="button">Archive</button>
+        <button id="btn-about" type="button">About</button>
+        <button id="btn-settings" type="button" title="Settings">⚙️</button>
+        <button id="btn-search" type="button" title="Search">🔍</button>
+      </div>
     </div>
   </header>
 
   <!-- Daily View -->
   <div id="daily-view" class="container">
     <div class="subheader" id="daily-subheader"></div>
+    <div class="date-navigation">
+      <button id="prev-day-btn" class="nav-btn">← Previous Day</button>
+      <button id="today-btn" class="nav-btn">Today</button>
+      <button id="next-day-btn" class="nav-btn">Next Day →</button>
+    </div>
     <table>
       <thead>
         <tr>
@@ -29,6 +43,12 @@
       <tbody id="daily-body"></tbody>
     </table>
     <div id="congrats-message">Congrats! You completed all tasks! 🍪</div>
+  </div>
+
+  <!-- Statistics View -->
+  <div id="statistics-view" class="container">
+    <div class="subheader">Statistics</div>
+    <div id="statistics-content"></div>
   </div>
 
   <!-- Archive View -->
@@ -48,45 +68,169 @@
     </table>
   </div>
 
+  <!-- About View -->
+  <div id="about-view" class="container">
+    <div class="about-content">
+      <h1>About Time Blocking</h1>
+      
+      <section class="about-section">
+        <h2>What is Time Blocking?</h2>
+        <p>Time blocking is a time management technique where you divide your day into specific blocks of time, each dedicated to a particular task or group of tasks. Instead of working from a to-do list and hoping to find time for everything, you schedule your tasks directly into your calendar, allocating a set number of hours to each activity.</p>
+        <p>Think of it as organizing your to-do list in a meaningful, time-allocated way. By breaking your day into dedicated blocks, you create a structured schedule that helps you prioritize effectively and stay focused on what matters most.</p>
+      </section>
+
+      <section class="about-section">
+        <h2>Benefits of Time Blocking</h2>
+        
+        <div class="benefit-item">
+          <h3>1. Improves Your Focus</h3>
+          <p>By breaking your day into specific blocks of time, you can give your full attention to one task at a time without feeling guilty. You avoid constantly switching between tasks, which reduces the cognitive switching penalty where your brain expends energy loading, flushing, and reloading contextual information for each new task.</p>
+        </div>
+
+        <div class="benefit-item">
+          <h3>2. Better Control of Your Day</h3>
+          <p>Time blocking brings a sense of control into your life. When you create a schedule and systematically allot time to important projects and activities, you get the feeling that you are on top of all the important things in your life. You'll feel more at ease doing tasks, knowing that you have allotted sufficient time for other important tasks as well.</p>
+        </div>
+
+        <div class="benefit-item">
+          <h3>3. More Time for Deep Work</h3>
+          <p>Deep work involves creative, focused, deeply human work that requires sustained concentration. Instead of hoping to find some time for deep work, time blocking gives you the power to create dedicated time for it. By scheduling blocks for focused work, you ensure that important, high-value tasks get the attention they deserve.</p>
+        </div>
+
+        <div class="benefit-item">
+          <h3>4. Better Distribution of Time</h3>
+          <p>You can allocate specific blocks of time for specific tasks, be it work, exercise, or spending time with friends and family. Time is the most important resource you have, and time blocking helps you think about how to distribute it across competing priorities in a way that delivers optimal outcomes.</p>
+        </div>
+
+        <div class="benefit-item">
+          <h3>5. Less Procrastination</h3>
+          <p>Time blocking helps reduce procrastination by making tasks more concrete and scheduled. When you have a specific time block dedicated to a task, it becomes harder to put it off. You can even block time specifically for your go-to procrastination activities, which signals to your brain that there's already time allotted for those, so you can get back to your important work.</p>
+        </div>
+
+        <div class="benefit-item">
+          <h3>6. Increased Productivity</h3>
+          <p>You'll start noticing that you're getting more things done when you start time blocking. While 100% task completion is impossible, time blocking helps with thoughtful prioritization and completion of tasks that bring maximum value. It's about improvement from your previous level of productivity, not perfection.</p>
+        </div>
+
+        <div class="benefit-item">
+          <h3>7. Better Boundaries</h3>
+          <p>Time blocking helps you set better boundaries. When your schedule is blocked out, it's easier to say no to requests that interfere with your planned work. You can confidently decline meetings or requests that conflict with your scheduled blocks, protecting your time for what matters most.</p>
+        </div>
+      </section>
+
+      <section class="about-section">
+        <h2>Challenges of Time Blocking</h2>
+        
+        <div class="challenge-item">
+          <h3>1. It Takes Effort</h3>
+          <p>Time blocking is an effortful activity. It takes thinking and prioritizing to plan ahead, and it requires discipline and commitment to stick to. Especially when you begin, it may feel unnatural because you're not allowing yourself to attend to multiple activities as you please. The effort involves both deciding time blocks and activities, as well as sticking to the activity during that time.</p>
+        </div>
+
+        <div class="challenge-item">
+          <h3>2. Lack of Spontaneity</h3>
+          <p>Time blocking can limit the degree of spontaneity you can have with your daily activities. It can be difficult to be flexible and go with the flow if you have your day planned out to the minute. However, this can be mitigated by not being too rigid with your schedule and leaving some blocks flexible for unexpected tasks.</p>
+        </div>
+      </section>
+
+      <section class="about-section">
+        <h2>Finding the Right Balance</h2>
+        <p>Time blocking is an excellent productivity technique if you can find the right balance between flexibility and efficiency. Be mindful of the usual pitfalls, such as the desire to plan every minute of your day, which can render this technique counterproductive.</p>
+        <p><strong>Tips for success:</strong></p>
+        <ul>
+          <li>Start by time blocking just 2-4 hours a day</li>
+          <li>Create a general schedule with some flexibility</li>
+          <li>Schedule about 4-5 hours for your most important work</li>
+          <li>Leave 2-3 hours loose for shallow work or unexpected tasks</li>
+          <li>Allow yourself flexibility to swap out tasks if something urgent comes up</li>
+          <li>Don't plan every minute - leave buffer time</li>
+        </ul>
+        <p>You may have to experiment a bit to find the right balance that works for you. Remember, the goal is to improve your productivity and sense of control, not to create a rigid schedule that causes stress.</p>
+      </section>
+
+      <section class="about-section">
+        <h2>How This App Helps</h2>
+        <p>This Time-Blocking app is designed to make time blocking simple and effective. With features like:</p>
+        <ul>
+          <li><strong>Visual Schedule:</strong> See your entire day laid out in a clear, visual format</li>
+          <li><strong>Task Management:</strong> Add tasks to your blocks and track completion</li>
+          <li><strong>Recurring Blocks:</strong> Set up blocks that repeat on specific days</li>
+          <li><strong>Notes:</strong> Add notes to your blocks for context and reminders</li>
+          <li><strong>Color Coding:</strong> Organize different types of activities with colors</li>
+          <li><strong>Archive:</strong> Review past days to see your productivity patterns</li>
+          <li><strong>Statistics:</strong> Track your time allocation and task completion</li>
+        </ul>
+        <p>Start by creating a few blocks for your most important tasks today, and gradually build the habit of time blocking into your daily routine.</p>
+      </section>
+
+      <section class="about-section sources">
+        <h2>Sources</h2>
+        <p>This content is based on research and insights from:</p>
+        <ul>
+          <li><a href="https://www.habitstrong.com/time-blocking-pros-cons" target="_blank">HabitStrong - Pros and Cons of Time Blocking</a></li>
+          <li><a href="https://www.getclockwise.com/blog/benefits-time-blocking" target="_blank">Clockwise - 7 Benefits of Time Blocking</a></li>
+          <li><a href="https://www.todoist.com/productivity-methods/time-blocking" target="_blank">Todoist - Time Blocking Method</a></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
   <!-- Popup Form (Create/Edit Block) -->
   <div class="overlay" id="overlay">
     <div class="popup">
       <button id="close-popup-btn">✖</button>
-      <h2 id="popup-title">Create Block</h2>
+      <div class="popup-content">
+        <h2 id="popup-title">Create Block</h2>
 
-      <label for="block-title">Block Title</label>
-      <input type="text" id="block-title" name="blockTitle" />
+        <label for="block-title">Block Title</label>
+        <input type="text" id="block-title" name="blockTitle" />
 
-      <label>Tasks</label>
-      <div id="task-list-container"></div>
-      <button class="plus-btn" id="add-task-btn">+ Add Task</button>
+        <div id="time-date-section" style="display: none;">
+          <label for="block-date">Date</label>
+          <input type="date" id="block-date" name="blockDate" />
 
-      <label for="block-notes">Notes</label>
-      <textarea id="block-notes" name="blockNotes" rows="3"></textarea>
+          <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <div style="flex: 1;">
+              <label for="block-start-time">Start Time</label>
+              <input type="time" id="block-start-time" name="blockStartTime" step="1800" />
+            </div>
+            <div style="flex: 1;">
+              <label for="block-end-time">End Time</label>
+              <input type="time" id="block-end-time" name="blockEndTime" step="1800" />
+            </div>
+          </div>
+        </div>
 
-      <label>Color</label>
-      <div id="block-color-options" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+        <label>Tasks</label>
+        <div id="task-list-container" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 0.25rem; padding: 0.5rem; margin-bottom: 0.5rem;"></div>
+        <button class="plus-btn" id="add-task-btn">+ Add Task</button>
 
-      <div style="display: flex; gap: 20px; margin-top: 10px;">
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input type="checkbox" id="recurring-checkbox" name="isRecurring" style="margin-right: 6px;" />
-          Recurring
-        </label>
-      
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input type="checkbox" id="carryover-checkbox" name="carryover" style="margin-right: 6px;" />
-          Carry Over Tasks &amp; Notes
-        </label>
-      </div>
+        <label for="block-notes">Notes</label>
+        <textarea id="block-notes" name="blockNotes" rows="3"></textarea>
 
-      <div class="recurrence-days" id="recurrence-days" style="display:none;">
-        <label><input type="checkbox" value="Mon" /> Mon</label>
-        <label><input type="checkbox" value="Tue" /> Tue</label>
-        <label><input type="checkbox" value="Wed" /> Wed</label>
-        <label><input type="checkbox" value="Thu" /> Thu</label>
-        <label><input type="checkbox" value="Fri" /> Fri</label>
-        <label><input type="checkbox" value="Sat" /> Sat</label>
-        <label><input type="checkbox" value="Sun" /> Sun</label>
+        <label>Color</label>
+        <div id="block-color-options" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+
+        <div style="display: flex; gap: 20px; margin-top: 10px;">
+          <label style="display: flex; align-items: center; cursor: pointer;">
+            <input type="checkbox" id="recurring-checkbox" name="isRecurring" style="margin-right: 6px;" />
+            Recurring
+          </label>
+        
+          <label id="carryover-label" style="display: flex; align-items: center; cursor: pointer; display: none;">
+            <input type="checkbox" id="carryover-checkbox" name="carryover" style="margin-right: 6px;" />
+            Carry Over Tasks &amp; Notes
+          </label>
+        </div>
+
+        <div class="recurrence-days" id="recurrence-days" style="display:none;">
+          <label><input type="checkbox" value="Mon" /> Mon</label>
+          <label><input type="checkbox" value="Tue" /> Tue</label>
+          <label><input type="checkbox" value="Wed" /> Wed</label>
+          <label><input type="checkbox" value="Thu" /> Thu</label>
+          <label><input type="checkbox" value="Fri" /> Fri</label>
+          <label><input type="checkbox" value="Sat" /> Sat</label>
+          <label><input type="checkbox" value="Sun" /> Sun</label>
+        </div>
       </div>
 
       <div class="popup-buttons">
@@ -99,8 +243,10 @@
   <!-- Settings Overlay -->
   <div class="overlay overlay-settings" id="settings-overlay">
     <div class="popup">
-      <button id="close-popup-settings-btn">✖</button>
-      <h2>Settings</h2>
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button id="close-popup-settings-btn">✖</button>
+      </div>
       <p>Select which times to hide from the schedule (times in use cannot be hidden):</p>
       <div class="time-list" id="time-list"></div>
 
@@ -108,6 +254,42 @@
         <p>Customize preset block colors:</p>
         <div id="colors-container"></div>
       </div>
+
+      <div class="data-section">
+        <h3>Data Management</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; flex-direction: column;">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="export-json-btn" class="nav-btn">Export as JSON</button>
+            <button id="export-txt-btn" class="nav-btn">Export as TXT</button>
+            <button id="import-btn" class="nav-btn">Import Data</button>
+            <input type="file" id="import-file-input" accept=".json,.txt" style="display: none;" />
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="print-view-btn" class="nav-btn">Print View</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search Results Overlay -->
+  <div class="overlay overlay-search" id="search-overlay">
+    <div class="popup" style="max-width: 600px;">
+      <button id="close-search-overlay-btn">✖</button>
+      <h2>Search Results</h2>
+      <div id="search-results"></div>
+    </div>
+  </div>
+
+  <!-- Print View -->
+  <div id="print-view" class="container print-container">
+    <div class="print-header">
+      <h1>Time-Blocking Schedule</h1>
+      <div id="print-date-range"></div>
+    </div>
+    <div id="print-content"></div>
+    <div class="print-footer">
+      <p>Generated on <span id="print-timestamp"></span></p>
     </div>
   </div>
 
