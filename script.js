@@ -1,6 +1,11 @@
 function updateDailySubheader(){
   const dayName = getWeekdayName(currentDate);
-  dailySubheader.textContent = "Daily Schedule for " + dayName + ", " + formatDate(currentDate);
+  const dateStr = formatDate(currentDate);
+  // Format date as MM/DD/YYYY
+  const dateParts = dateStr.split("-");
+  const formattedDate = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
+  
+  dailySubheader.textContent = `Daily Schedule for ${dayName}, ${formattedDate}`;
 }
 
 let timeBlocks = loadBlocksFromStorage() || { blocks: [] };
@@ -10,6 +15,10 @@ let colorPresets = loadColorPresetsFromStorage() || [
 "#F1948A","#85C1E9","#F8C471","#82E0AA","#F9E79F"
 ];
 let hiddenTimes = loadHiddenTimesFromStorage() || [];
+let draggedBlock = null;
+let draggedBlockCell = null;
+let touchStartX = 0;
+let touchStartY = 0;
 
 let currentDate = new Date();
 let editBlockId = null;
@@ -17,15 +26,22 @@ let editBlockId = null;
 // UI references
 const dailyView = document.getElementById("daily-view");
 const dailySubheader = document.getElementById("daily-subheader");
+const statisticsView = document.getElementById("statistics-view");
 const archiveView = document.getElementById("archive-view");
+const aboutView = document.getElementById("about-view");
 const overlay = document.getElementById("overlay");
 const settingsOverlay = document.getElementById("settings-overlay");
+const searchOverlay = document.getElementById("search-overlay");
 
 const taskListContainer = document.getElementById("task-list-container");
 const addTaskBtn = document.getElementById("add-task-btn");
 const popupTitle = document.getElementById("popup-title");
 const blockTitleInput = document.getElementById("block-title");
 const blockNotesInput = document.getElementById("block-notes");
+const blockDateInput = document.getElementById("block-date");
+const blockStartTimeInput = document.getElementById("block-start-time");
+const blockEndTimeInput = document.getElementById("block-end-time");
+const timeDateSection = document.getElementById("time-date-section");
 let colorVal = colorPresets[0];
 const recurringCheckbox = document.getElementById("recurring-checkbox");
 const recurrenceDaysDiv = document.getElementById("recurrence-days");
@@ -34,10 +50,33 @@ const deleteBtn = document.getElementById("delete-btn");
 const cancelBtn = document.getElementById("cancel-btn");
 
 const btnDaily = document.getElementById("btn-daily");
+const btnStatistics = document.getElementById("btn-statistics");
 const btnArchive = document.getElementById("btn-archive");
+const btnAbout = document.getElementById("btn-about");
 const btnSettings = document.getElementById("btn-settings");
+const btnSearch = document.getElementById("btn-search");
 const closeSettingsBtn = document.getElementById("close-popup-settings-btn");
 const closePopupBtn = document.getElementById("close-popup-btn");
+const closeSearchBtn = document.getElementById("close-search-btn");
+const closeSearchOverlayBtn = document.getElementById("close-search-overlay-btn");
+const searchInput = document.getElementById("search-input");
+const searchContainer = document.getElementById("search-container");
+const searchResults = document.getElementById("search-results");
+const exportJsonBtn = document.getElementById("export-json-btn");
+const exportTxtBtn = document.getElementById("export-txt-btn");
+const importBtn = document.getElementById("import-btn");
+const importFileInput = document.getElementById("import-file-input");
+const printViewBtn = document.getElementById("print-view-btn");
+const statisticsContent = document.getElementById("statistics-content");
+const printView = document.getElementById("print-view");
+const printContent = document.getElementById("print-content");
+const printDateRange = document.getElementById("print-date-range");
+const printTimestamp = document.getElementById("print-timestamp");
+
+// Date navigation buttons
+const prevDayBtn = document.getElementById("prev-day-btn");
+const todayBtn = document.getElementById("today-btn");
+const nextDayBtn = document.getElementById("next-day-btn");
 
 const timeListDiv = document.getElementById("time-list");
 const colorsContainer = document.getElementById("colors-container");
@@ -70,14 +109,20 @@ buildColorsContainer();
 
 // daily active by default
 dailyView.classList.add("active");
+btnDaily.classList.add("active");
 
 /***************************************************
 * Buttons
 **************************************************/
 btnDaily.addEventListener("click", () => {
 dailyView.classList.add("active");
+if (statisticsView) statisticsView.classList.remove("active");
 archiveView.classList.remove("active");
+if (aboutView) aboutView.classList.remove("active");
 settingsOverlay.classList.remove("active");
+// Update active button state
+document.querySelectorAll(".view-buttons button").forEach(btn => btn.classList.remove("active"));
+btnDaily.classList.add("active");
 updateDailySubheader();
 displayDailyBlocks();
 highlightCurrentTime();
@@ -85,26 +130,171 @@ highlightCurrentTime();
 btnDaily.addEventListener("touchend", (e) => {
 e.preventDefault();
 dailyView.classList.add("active");
+if (statisticsView) statisticsView.classList.remove("active");
 archiveView.classList.remove("active");
+if (aboutView) aboutView.classList.remove("active");
 settingsOverlay.classList.remove("active");
+// Update active button state
+document.querySelectorAll(".view-buttons button").forEach(btn => btn.classList.remove("active"));
+btnDaily.classList.add("active");
 updateDailySubheader();
 displayDailyBlocks();
 highlightCurrentTime();
 }, { passive: false });
 
+if (btnStatistics) {
+  btnStatistics.addEventListener("click", () => {
+    dailyView.classList.remove("active");
+    archiveView.classList.remove("active");
+    if (aboutView) aboutView.classList.remove("active");
+    settingsOverlay.classList.remove("active");
+    // Update active button state
+    document.querySelectorAll(".view-buttons button").forEach(btn => btn.classList.remove("active"));
+    btnStatistics.classList.add("active");
+    if (statisticsView) {
+      statisticsView.classList.add("active");
+      buildStatistics();
+    }
+  });
+}
+
 btnArchive.addEventListener("click", () => {
 dailyView.classList.remove("active");
+statisticsView.classList.remove("active");
+if (aboutView) aboutView.classList.remove("active");
 settingsOverlay.classList.remove("active");
 archiveView.classList.add("active");
+// Update active button state
+document.querySelectorAll(".view-buttons button").forEach(btn => btn.classList.remove("active"));
+btnArchive.classList.add("active");
 buildArchiveList();
 });
 btnArchive.addEventListener("touchend", (e) => {
 e.preventDefault();
 dailyView.classList.remove("active");
+statisticsView.classList.remove("active");
+if (aboutView) aboutView.classList.remove("active");
 settingsOverlay.classList.remove("active");
 archiveView.classList.add("active");
+// Update active button state
+document.querySelectorAll(".view-buttons button").forEach(btn => btn.classList.remove("active"));
+btnArchive.classList.add("active");
 buildArchiveList();
 }, { passive: false });
+
+if (btnAbout) {
+  btnAbout.addEventListener("click", () => {
+    dailyView.classList.remove("active");
+    if (statisticsView) statisticsView.classList.remove("active");
+    archiveView.classList.remove("active");
+    settingsOverlay.classList.remove("active");
+    if (aboutView) aboutView.classList.add("active");
+    // Update active button state
+    document.querySelectorAll(".view-buttons button").forEach(btn => btn.classList.remove("active"));
+    btnAbout.classList.add("active");
+  });
+  btnAbout.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    dailyView.classList.remove("active");
+    if (statisticsView) statisticsView.classList.remove("active");
+    archiveView.classList.remove("active");
+    settingsOverlay.classList.remove("active");
+    if (aboutView) aboutView.classList.add("active");
+    // Update active button state
+    document.querySelectorAll(".view-buttons button").forEach(btn => btn.classList.remove("active"));
+    btnAbout.classList.add("active");
+  }, { passive: false });
+}
+
+if (btnSearch) {
+  btnSearch.addEventListener("click", () => {
+    if (searchContainer) {
+      searchContainer.style.display = searchContainer.style.display === "none" ? "flex" : "none";
+      if (searchContainer.style.display === "flex" && searchInput) {
+        searchInput.focus();
+      }
+    }
+  });
+}
+
+if (closeSearchBtn) {
+  closeSearchBtn.addEventListener("click", () => {
+    if (searchContainer) searchContainer.style.display = "none";
+    if (searchInput) searchInput.value = "";
+  });
+}
+
+if (searchInput) {
+  searchInput.addEventListener("input", (e) => {
+    const query = e.target.value.trim().toLowerCase();
+    if (query.length > 0) {
+      performSearch(query);
+    } else {
+      if (searchResults) searchResults.innerHTML = "";
+      if (searchOverlay) searchOverlay.classList.remove("active");
+    }
+  });
+
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const query = e.target.value.trim().toLowerCase();
+      if (query.length > 0) {
+        performSearch(query);
+      }
+    }
+  });
+}
+
+if (closeSearchOverlayBtn) {
+  closeSearchOverlayBtn.addEventListener("click", () => {
+    if (searchOverlay) searchOverlay.classList.remove("active");
+  });
+}
+
+// Export/Import handlers
+if (exportJsonBtn) {
+  exportJsonBtn.addEventListener("click", () => exportData("json"));
+}
+if (exportTxtBtn) {
+  exportTxtBtn.addEventListener("click", () => exportData("txt"));
+}
+if (importBtn) {
+  importBtn.addEventListener("click", () => importFileInput.click());
+}
+if (importFileInput) {
+  importFileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const fileContent = event.target.result;
+          const fileExtension = file.name.split('.').pop().toLowerCase();
+          
+          if (fileExtension === "json") {
+            const data = JSON.parse(fileContent);
+            importData(data);
+          } else if (fileExtension === "txt") {
+            const data = parseTxtImport(fileContent);
+            importData(data);
+          } else {
+            alert("Unsupported file format. Please use .json or .txt files.");
+          }
+        } catch (error) {
+          alert("Error importing data: " + error.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = ""; // Reset input
+    }
+  });
+}
+if (printViewBtn) {
+  printViewBtn.addEventListener("click", () => {
+    showPrintView();
+  });
+}
 
 btnSettings.addEventListener("click", (e) => {
 e.preventDefault();
@@ -129,6 +319,16 @@ addTaskRow("");
 
 recurringCheckbox.addEventListener("change", () => {
 recurrenceDaysDiv.style.display = recurringCheckbox.checked ? "flex" : "none";
+const carryoverLabel = document.getElementById("carryover-label");
+carryoverLabel.style.display = recurringCheckbox.checked ? "flex" : "none";
+
+// Disable/enable date input for recurring blocks
+if (blockDateInput) {
+  blockDateInput.disabled = recurringCheckbox.checked;
+  if (recurringCheckbox.checked) {
+    blockDateInput.value = formatDate(currentDate); // Set to current date
+  }
+}
 });
 saveBtn.addEventListener("click", handleSaveBlock);
 saveBtn.addEventListener("touchend", (e) => {
@@ -147,6 +347,109 @@ closePopupBtn.addEventListener("touchend", (e) => {
 e.preventDefault();
 hideOverlay();
 }, { passive: false });
+
+// Click outside overlay to close
+overlay.addEventListener("click", (e) => {
+  if (e.target === overlay) {
+    hideOverlay();
+  }
+});
+settingsOverlay.addEventListener("click", (e) => {
+  if (e.target === settingsOverlay) {
+    hideSettings();
+  }
+});
+
+// Keyboard: Escape key closes modals, Arrow keys navigate dates, Cmd/Ctrl+P for print
+document.addEventListener("keydown", (e) => {
+  // Handle print shortcut (Cmd+P on Mac, Ctrl+P on Windows/Linux)
+  if ((e.metaKey || e.ctrlKey) && e.key === "p") {
+    e.preventDefault();
+    showPrintView();
+    return;
+  }
+  
+  // Only handle keyboard shortcuts when modals are not open and not typing in inputs
+  const activeElement = document.activeElement;
+  const isInputFocused = activeElement && (
+    activeElement.tagName === "INPUT" || 
+    activeElement.tagName === "TEXTAREA" ||
+    activeElement.isContentEditable
+  );
+  
+  if (e.key === "Escape" || e.key === "Esc") {
+    if (overlay.classList.contains("active")) {
+      hideOverlay();
+    } else if (settingsOverlay.classList.contains("active")) {
+      hideSettings();
+    } else if (printView && printView.classList.contains("active")) {
+      printView.classList.remove("active");
+      dailyView.classList.add("active");
+    }
+  } else if (!isInputFocused && dailyView.classList.contains("active")) {
+    // Arrow key navigation for dates
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      currentDate.setDate(currentDate.getDate() - 1);
+      updateDailySubheader();
+      displayDailyBlocks();
+      highlightCurrentTime();
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      currentDate.setDate(currentDate.getDate() + 1);
+      updateDailySubheader();
+      displayDailyBlocks();
+      highlightCurrentTime();
+    } else if (e.key === "Home" || (e.key === "t" && !e.ctrlKey && !e.metaKey)) {
+      e.preventDefault();
+      currentDate = new Date();
+      updateDailySubheader();
+      displayDailyBlocks();
+      highlightCurrentTime();
+    }
+  }
+});
+
+// Handle browser print dialog (beforeprint event)
+window.addEventListener("beforeprint", () => {
+  // If print view is not already active, show it
+  if (!printView || !printView.classList.contains("active")) {
+    showPrintView();
+  }
+});
+
+// Handle after print to return to normal view
+window.addEventListener("afterprint", () => {
+  // Hide print view after printing and return to daily view
+  if (printView && printView.classList.contains("active")) {
+    printView.classList.remove("active");
+    dailyView.classList.add("active");
+    updateDailySubheader();
+    displayDailyBlocks();
+    highlightCurrentTime();
+  }
+});
+
+// Date navigation
+prevDayBtn.addEventListener("click", () => {
+currentDate.setDate(currentDate.getDate() - 1);
+updateDailySubheader();
+displayDailyBlocks();
+highlightCurrentTime();
+});
+nextDayBtn.addEventListener("click", () => {
+currentDate.setDate(currentDate.getDate() + 1);
+updateDailySubheader();
+displayDailyBlocks();
+highlightCurrentTime();
+});
+todayBtn.addEventListener("click", () => {
+currentDate = new Date();
+updateDailySubheader();
+displayDailyBlocks();
+highlightCurrentTime();
+});
+
 
 /***************************************************
 * Daily
@@ -208,7 +511,26 @@ const dailyBlocks = timeBlocks.blocks.filter(b => {
 
 renderBlocksDaily(dailyBlocks);
 checkAllTasksCompletion(dailyBlocks);
+checkForEmptyDay();
 }
+
+function checkForEmptyDay() {
+  const todayStr = formatDate(currentDate);
+  const dailyBlocks = timeBlocks.blocks.filter(b => {
+    if(b.archived) return false;
+    if(b.recurring && b.recurrenceDays && b.recurrenceDays.length>0){
+      return b.recurrenceDays.includes(getWeekdayName(currentDate));
+    } else {
+      if(!b.startTime) return false;
+      return (b.startTime.split("T")[0] === todayStr);
+    }
+  });
+  
+  // Remove existing empty message if any
+  const existing = document.getElementById("empty-day-message");
+  if (existing) existing.remove();
+}
+
 function renderBlocksDaily(blocks){
 const dailyBody = document.getElementById("daily-body");
 blocks.forEach(block => {
@@ -443,7 +765,10 @@ endCell = e.target;
 markSelectedRange();
 isMouseDown = false;
 
-if(!startCell.closest("td").dataset.blockId && !endCell.closest("td").dataset.blockId){
+const startTd = startCell.closest("td");
+const endTd = endCell.closest("td");
+
+if(!startTd.dataset.blockId && !endTd.dataset.blockId){
   showBlockPopup(null);
 }
 }
@@ -546,6 +871,35 @@ if (blockData) {
   blockNotesInput.value = blockData.notes || "";
   recurringCheckbox.checked = !!blockData.recurring;
   recurrenceDaysDiv.style.display = blockData.recurring ? "flex" : "none";
+  const carryoverLabel = document.getElementById("carryover-label");
+  carryoverLabel.style.display = blockData.recurring ? "flex" : "none";
+  document.getElementById("carryover-checkbox").checked = !!blockData.carryOver;
+
+  // Show time/date inputs for editing
+  if (timeDateSection) {
+    timeDateSection.style.display = "block";
+    
+    // Populate date and time if block has startTime
+    if (blockData.startTime && !blockData.recurring) {
+      const dateStr = blockData.startTime.split("T")[0];
+      const startTime = blockData.startTime.split("T")[1].slice(0, 5);
+      const endTime = blockData.endTime ? blockData.endTime.split("T")[1].slice(0, 5) : "";
+      
+      if (blockDateInput) blockDateInput.value = dateStr;
+      if (blockStartTimeInput) blockStartTimeInput.value = startTime;
+      if (blockEndTimeInput) blockEndTimeInput.value = endTime;
+    } else {
+      // For recurring blocks, show current date as default
+      if (blockDateInput) blockDateInput.value = formatDate(currentDate);
+      if (blockStartTimeInput) blockStartTimeInput.value = "";
+      if (blockEndTimeInput) blockEndTimeInput.value = "";
+    }
+    
+    // Disable date input for recurring blocks
+    if (blockDateInput) {
+      blockDateInput.disabled = !!blockData.recurring;
+    }
+  }
 
   deleteBtn.style.display = "inline-block"; // show delete in edit mode
 
@@ -569,6 +923,12 @@ if (blockData) {
   // Create mode
   popupTitle.textContent = "Create Block";
   deleteBtn.style.display = "none"; // hide delete in create mode
+  
+  // Hide time/date inputs when creating (will use selection)
+  if (timeDateSection) {
+    timeDateSection.style.display = "none";
+  }
+  
   buildTaskList([]);
   editBlockId = null;
 }
@@ -615,12 +975,39 @@ if(editBlockId){
   block.color = colorVal;
   block.recurring = recurring;
   block.recurrenceDays = recDays;
+  block.carryOver = carryOver;
 
   const oldTasks = block.tasks || [];
   block.tasks = tasksArr.map(t => {
     const old = oldTasks.find(o => o.text===t.text);
     return old ? { text:t.text, completed:old.completed } : t;
   });
+  
+  // Update time/date if provided in edit mode
+  if (timeDateSection && timeDateSection.style.display !== "none") {
+    const dateVal = blockDateInput ? blockDateInput.value : "";
+    const startTimeVal = blockStartTimeInput ? blockStartTimeInput.value : "";
+    const endTimeVal = blockEndTimeInput ? blockEndTimeInput.value : "";
+    
+    if (dateVal && startTimeVal && endTimeVal && !recurring) {
+      // Validate time range
+      if (startTimeVal >= endTimeVal) {
+        alert("End time must be after start time. Please enter a valid time range.");
+        return;
+      }
+      
+      // Update block times
+      block.startTime = `${dateVal}T${startTimeVal}:00`;
+      block.endTime = `${dateVal}T${endTimeVal}:00`;
+    } else if (!recurring && (dateVal || startTimeVal || endTimeVal)) {
+      // If any time field is filled but not all, show error
+      if (dateVal || startTimeVal || endTimeVal) {
+        alert("Please fill in Date, Start Time, and End Time, or leave all blank to keep current times.");
+        return;
+      }
+    }
+    // If all blank and not recurring, keep existing times
+  }
 } else {
   block = {
     id: generateUUID(),
@@ -633,6 +1020,11 @@ if(editBlockId){
     tasks: tasksArr
   };
   const {start, end} = computeTimeRangeFromSelection();
+  // Validate time range
+  if (start >= end) {
+    alert("End time must be after start time. Please select a valid time range.");
+    return;
+  }
   block.startTime = start;
   block.endTime = end;
   timeBlocks.blocks.push(block);
@@ -655,6 +1047,26 @@ displayDailyBlocks();
 highlightCurrentTime();
 }
 
+function duplicateBlock(blockToDuplicate) {
+  const newBlock = {
+    id: generateUUID(),
+    title: blockToDuplicate.title + " (Copy)",
+    notes: blockToDuplicate.notes || "",
+    color: blockToDuplicate.color || colorPresets[0],
+    recurring: blockToDuplicate.recurring || false,
+    recurrenceDays: blockToDuplicate.recurrenceDays ? [...blockToDuplicate.recurrenceDays] : [],
+    carryOver: blockToDuplicate.carryOver || false,
+    tasks: blockToDuplicate.tasks ? blockToDuplicate.tasks.map(t => ({ text: t.text, completed: false })) : [],
+    startTime: blockToDuplicate.startTime,
+    endTime: blockToDuplicate.endTime
+  };
+  
+  timeBlocks.blocks.push(newBlock);
+  saveBlocksToStorage(timeBlocks);
+  displayDailyBlocks();
+  highlightCurrentTime();
+}
+
 /***************************************************
 * Single Cell Render
 **************************************************/
@@ -668,17 +1080,51 @@ cell.classList.add("block-cell");
 const titleDiv = document.createElement("div");
 titleDiv.classList.add("block-title");
 titleDiv.textContent = block.title || "Untitled";
-titleDiv.addEventListener("click", () => {
-  editBlockId = block.id;
-  showBlockPopup(block);
-});
-// Add a touchend to allow block editing on mobile
-titleDiv.addEventListener("touchend", (e) => {
-  e.preventDefault();
-  editBlockId = block.id;
-  showBlockPopup(block);
-}, { passive: false });
-cell.appendChild(titleDiv);
+  
+  // Right-click or long-press for context menu (duplicate)
+  titleDiv.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    if (confirm("Duplicate this block?")) {
+      duplicateBlock(block);
+    }
+  });
+  
+  // Drag to reorder
+  cell.setAttribute("draggable", "true");
+  cell.dataset.blockId = block.id;
+  cell.addEventListener("dragstart", (e) => {
+    draggedBlock = block;
+    draggedBlockCell = cell;
+    cell.classList.add("dragging");
+    e.dataTransfer.effectAllowed = "move";
+  });
+  cell.addEventListener("dragend", () => {
+    cell.classList.remove("dragging");
+    draggedBlock = null;
+    draggedBlockCell = null;
+  });
+  cell.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  });
+  cell.addEventListener("drop", (e) => {
+    e.preventDefault();
+    if (draggedBlock && draggedBlock.id !== block.id) {
+      reorderBlocks(draggedBlock, block);
+    }
+  });
+  
+  titleDiv.addEventListener("click", () => {
+    editBlockId = block.id;
+    showBlockPopup(block);
+  });
+  // Add a touchend to allow block editing on mobile
+  titleDiv.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    editBlockId = block.id;
+    showBlockPopup(block);
+  }, { passive: false });
+  cell.appendChild(titleDiv);
 
 const tasksBox = document.createElement("div");
 tasksBox.classList.add("tasks-box");
@@ -726,6 +1172,20 @@ cell.appendChild(notesBox);
 
 cell.dataset.blockId = block.id;
 }
+
+function reorderBlocks(sourceBlock, targetBlock) {
+  const sourceIndex = timeBlocks.blocks.findIndex(b => b.id === sourceBlock.id);
+  const targetIndex = timeBlocks.blocks.findIndex(b => b.id === targetBlock.id);
+  
+  if (sourceIndex === -1 || targetIndex === -1) return;
+  
+  // Swap the blocks
+  [timeBlocks.blocks[sourceIndex], timeBlocks.blocks[targetIndex]] = 
+    [timeBlocks.blocks[targetIndex], timeBlocks.blocks[sourceIndex]];
+  
+  saveBlocksToStorage(timeBlocks);
+  displayDailyBlocks();
+}
 function getCurrentDayBlocks(){
 const todayStr = formatDate(currentDate);
 return timeBlocks.blocks.filter(b => {
@@ -751,7 +1211,7 @@ function addTaskRow(taskText){
 const rowDiv = document.createElement("div");
 rowDiv.style.display = "flex";
 rowDiv.style.gap = "6px";
-rowDiv.style.marginBottom = "4px";
+rowDiv.style.marginBottom = "2px";
 
 const inputLabel = document.createElement("label");
 inputLabel.style.flex = "1";
@@ -779,6 +1239,14 @@ removeBtn.addEventListener("touchend", () => rowDiv.remove());
 rowDiv.appendChild(removeBtn);
 
 taskListContainer.appendChild(rowDiv);
+
+// Scroll to the newly added task input
+setTimeout(() => {
+  input.focus();
+  input.scrollIntoView({ behavior: "smooth", block: "end" });
+  // Also scroll the container to bottom to ensure the new task is fully visible
+  taskListContainer.scrollTop = taskListContainer.scrollHeight;
+}, 0);
 }
 function gatherTasksFromUI(){
 const tasks = [];
@@ -1093,5 +1561,404 @@ blockNotesInput.value="";
 recurringCheckbox.checked=false;
 recurrenceDaysDiv.style.display="none";
 recurrenceDaysDiv.querySelectorAll("input[type='checkbox']").forEach(chk=>chk.checked=false);
+const carryoverLabel = document.getElementById("carryover-label");
+carryoverLabel.style.display="none";
+document.getElementById("carryover-checkbox").checked=false;
+if (blockDateInput) {
+  blockDateInput.value = formatDate(currentDate);
+  blockDateInput.disabled = false;
+}
+if (blockStartTimeInput) blockStartTimeInput.value = "";
+if (blockEndTimeInput) blockEndTimeInput.value = "";
 taskListContainer.innerHTML="";
+}
+
+/***************************************************
+* Export/Import Data
+**************************************************/
+function exportData(format = "json") {
+  const data = {
+    timeBlocks: timeBlocks,
+    archivedBlocks: archivedBlocks,
+    colorPresets: colorPresets,
+    hiddenTimes: hiddenTimes,
+    exportDate: new Date().toISOString()
+  };
+  
+  let blob, filename, mimeType;
+  
+  if (format === "txt") {
+    const txtContent = formatDataAsTxt(data);
+    blob = new Blob([txtContent], { type: "text/plain" });
+    filename = `time-blocking-backup-${formatDate(new Date())}.txt`;
+    mimeType = "text/plain";
+  } else {
+    blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    filename = `time-blocking-backup-${formatDate(new Date())}.json`;
+    mimeType = "application/json";
+  }
+  
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function formatDataAsTxt(data) {
+  let txt = "TIME-BLOCKING DATA EXPORT\n";
+  txt += "=".repeat(50) + "\n\n";
+  txt += `Export Date: ${new Date(data.exportDate).toLocaleString()}\n\n`;
+  
+  txt += "ACTIVE BLOCKS\n";
+  txt += "-".repeat(50) + "\n";
+  if (data.timeBlocks.blocks && data.timeBlocks.blocks.length > 0) {
+    data.timeBlocks.blocks.forEach((block, index) => {
+      txt += `\nBlock ${index + 1}:\n`;
+      txt += `  Title: ${block.title || "Untitled"}\n`;
+      if (block.startTime) {
+        const date = block.startTime.split("T")[0];
+        const startTime = block.startTime.split("T")[1].slice(0, 5);
+        const endTime = block.endTime ? block.endTime.split("T")[1].slice(0, 5) : "N/A";
+        txt += `  Date: ${date}\n`;
+        txt += `  Time: ${startTime} - ${endTime}\n`;
+      }
+      if (block.recurring) {
+        txt += `  Recurring: Yes (${(block.recurrenceDays || []).join(", ")})\n`;
+      }
+      if (block.tasks && block.tasks.length > 0) {
+        txt += `  Tasks:\n`;
+        block.tasks.forEach((task, i) => {
+          const status = task.completed ? "[✓]" : "[ ]";
+          txt += `    ${status} ${task.text}\n`;
+        });
+      }
+      if (block.notes) {
+        txt += `  Notes: ${block.notes}\n`;
+      }
+      txt += "\n";
+    });
+  } else {
+    txt += "No active blocks.\n\n";
+  }
+  
+  txt += "ARCHIVED BLOCKS\n";
+  txt += "-".repeat(50) + "\n";
+  const archivedDays = Object.keys(data.archivedBlocks.days || {});
+  if (archivedDays.length > 0) {
+    archivedDays.forEach(day => {
+      txt += `\n${day}:\n`;
+      data.archivedBlocks.days[day].forEach((block, index) => {
+        txt += `  Block ${index + 1}: ${block.title || "Untitled"}\n`;
+        if (block.startTime) {
+          const time = block.startTime.split("T")[1].slice(0, 5);
+          txt += `    Time: ${time}\n`;
+        }
+      });
+    });
+  } else {
+    txt += "No archived blocks.\n\n";
+  }
+  
+  txt += "\nSETTINGS\n";
+  txt += "-".repeat(50) + "\n";
+  txt += `Color Presets: ${data.colorPresets.length} colors\n`;
+  txt += `Hidden Times: ${data.hiddenTimes.length} time slots\n`;
+  
+  return txt;
+}
+
+function parseTxtImport(txtContent) {
+  // Try to parse as JSON first (in case it's JSON saved as .txt)
+  try {
+    return JSON.parse(txtContent);
+  } catch (e) {
+    // If not JSON, return a basic structure
+    // Note: Full TXT parsing would be complex, so we'll prompt user to use JSON for import
+    alert("TXT import is read-only. For full import functionality, please use JSON format.\n\nTo export as JSON, use the 'Export as JSON' button.");
+    return null;
+  }
+}
+
+function importData(data) {
+  if (!data) return;
+  
+  if (confirm("This will replace all your current data. Are you sure?")) {
+    if (data.timeBlocks) timeBlocks = data.timeBlocks;
+    if (data.archivedBlocks) archivedBlocks = data.archivedBlocks;
+    if (data.colorPresets) colorPresets = data.colorPresets;
+    if (data.hiddenTimes) hiddenTimes = data.hiddenTimes;
+    
+    saveBlocksToStorage(timeBlocks);
+    saveArchivedToStorage(archivedBlocks);
+    saveColorPresetsToStorage(colorPresets);
+    saveHiddenTimesToStorage(hiddenTimes);
+    
+    populateColorCheckboxes();
+    buildColorsContainer();
+    displayDailyBlocks();
+    alert("Data imported successfully!");
+  }
+}
+
+/***************************************************
+* Search Functionality
+**************************************************/
+function performSearch(query) {
+  const results = [];
+  const allBlocks = [...timeBlocks.blocks, ...Object.values(archivedBlocks.days || {}).flat()];
+  
+  allBlocks.forEach(block => {
+    if (block.title && block.title.toLowerCase().includes(query)) {
+      results.push({ block, type: "title" });
+    }
+    if (block.notes && block.notes.toLowerCase().includes(query)) {
+      results.push({ block, type: "notes" });
+    }
+    if (block.tasks) {
+      block.tasks.forEach(task => {
+        if (task.text && task.text.toLowerCase().includes(query)) {
+          results.push({ block, type: "task", taskText: task.text });
+        }
+      });
+    }
+  });
+  
+  displaySearchResults(results, query);
+}
+
+function displaySearchResults(results, query) {
+  if (!searchResults) return;
+  searchResults.innerHTML = "";
+  
+  if (results.length === 0) {
+    searchResults.innerHTML = "<p>No results found.</p>";
+    if (searchOverlay) searchOverlay.classList.add("active");
+    return;
+  }
+  
+  // Remove duplicates (same block)
+  const uniqueResults = [];
+  const seenIds = new Set();
+  results.forEach(r => {
+    if (!seenIds.has(r.block.id || r.block.startTime)) {
+      seenIds.add(r.block.id || r.block.startTime);
+      uniqueResults.push(r);
+    }
+  });
+  
+  uniqueResults.forEach(result => {
+    const item = document.createElement("div");
+    item.classList.add("search-result-item");
+    
+    const title = document.createElement("div");
+    title.style.fontWeight = "bold";
+    title.textContent = result.block.title || "Untitled";
+    item.appendChild(title);
+    
+    const info = document.createElement("div");
+    info.style.fontSize = "0.9rem";
+    info.style.color = "#666";
+    if (result.block.startTime) {
+      const date = result.block.startTime.split("T")[0];
+      const time = result.block.startTime.split("T")[1].slice(0, 5);
+      info.textContent = `${date} at ${time}`;
+    }
+    item.appendChild(info);
+    
+    if (result.type === "notes" && result.block.notes) {
+      const notesPreview = document.createElement("div");
+      notesPreview.style.fontSize = "0.85rem";
+      notesPreview.style.color = "#888";
+      notesPreview.style.marginTop = "0.25rem";
+      notesPreview.textContent = result.block.notes.substring(0, 100) + (result.block.notes.length > 100 ? "..." : "");
+      item.appendChild(notesPreview);
+    }
+    
+    item.addEventListener("click", () => {
+      if (result.block.startTime) {
+        const blockDate = new Date(result.block.startTime);
+        currentDate = blockDate;
+        dailyView.classList.add("active");
+        statisticsView.classList.remove("active");
+        archiveView.classList.remove("active");
+        updateDailySubheader();
+        displayDailyBlocks();
+        highlightCurrentTime();
+      }
+      if (searchOverlay) searchOverlay.classList.remove("active");
+      if (searchContainer) searchContainer.style.display = "none";
+      if (searchInput) searchInput.value = "";
+    });
+    
+    searchResults.appendChild(item);
+  });
+  
+  if (searchOverlay) searchOverlay.classList.add("active");
+}
+
+/***************************************************
+* Statistics
+**************************************************/
+function buildStatistics() {
+  if (!statisticsContent) return;
+  const allBlocks = timeBlocks.blocks.filter(b => !b.archived);
+  const allArchived = Object.values(archivedBlocks.days || {}).flat();
+  const totalBlocks = allBlocks.length + allArchived.length;
+  
+  let totalTasks = 0;
+  let completedTasks = 0;
+  let totalTimeMinutes = 0;
+  
+  [...allBlocks, ...allArchived].forEach(block => {
+    if (block.tasks) {
+      totalTasks += block.tasks.length;
+      completedTasks += block.tasks.filter(t => t.completed).length;
+    }
+    if (block.startTime && block.endTime) {
+      const start = new Date(block.startTime);
+      const end = new Date(block.endTime);
+      const minutes = (end - start) / (1000 * 60);
+      totalTimeMinutes += minutes;
+    }
+  });
+  
+  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const totalHours = Math.floor(totalTimeMinutes / 60);
+  const remainingMinutes = Math.round(totalTimeMinutes % 60);
+  
+  statisticsContent.innerHTML = `
+    <div class="stat-card">
+      <h3>Total Blocks</h3>
+      <div class="stat-value">${totalBlocks}</div>
+      <div class="stat-label">${allBlocks.length} active, ${allArchived.length} archived</div>
+    </div>
+    <div class="stat-card">
+      <h3>Task Completion</h3>
+      <div class="stat-value">${completionRate}%</div>
+      <div class="stat-label">${completedTasks} of ${totalTasks} tasks completed</div>
+    </div>
+    <div class="stat-card">
+      <h3>Total Time Scheduled</h3>
+      <div class="stat-value">${totalHours}h ${remainingMinutes}m</div>
+      <div class="stat-label">Across all time blocks</div>
+    </div>
+  `;
+}
+
+/***************************************************
+* Print View
+**************************************************/
+function showPrintView() {
+  // Hide all other views
+  dailyView.classList.remove("active");
+  if (statisticsView) statisticsView.classList.remove("active");
+  archiveView.classList.remove("active");
+  settingsOverlay.classList.remove("active");
+  
+  // Show print view
+  if (printView) {
+    printView.classList.add("active");
+    buildPrintView();
+  }
+}
+
+function buildPrintView() {
+  if (!printContent || !printDateRange || !printTimestamp) return;
+  
+  const allBlocks = timeBlocks.blocks.filter(b => !b.archived);
+  const today = new Date();
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 7); // Show last 7 days + next 7 days
+  
+  printDateRange.textContent = `Schedule Overview - ${formatDate(startDate)} to ${formatDate(today)}`;
+  printTimestamp.textContent = new Date().toLocaleString();
+  
+  let html = "";
+  
+  // Group blocks by date
+  const blocksByDate = {};
+  allBlocks.forEach(block => {
+    if (block.recurring && block.recurrenceDays) {
+      // For recurring blocks, show them for each day they occur
+      for (let i = -7; i <= 7; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() + i);
+        const dayName = getWeekdayName(checkDate);
+        if (block.recurrenceDays.includes(dayName)) {
+          const dateStr = formatDate(checkDate);
+          if (!blocksByDate[dateStr]) blocksByDate[dateStr] = [];
+          blocksByDate[dateStr].push({ ...block, displayDate: dateStr });
+        }
+      }
+    } else if (block.startTime) {
+      const dateStr = block.startTime.split("T")[0];
+      if (!blocksByDate[dateStr]) blocksByDate[dateStr] = [];
+      blocksByDate[dateStr].push(block);
+    }
+  });
+  
+  // Sort dates
+  const sortedDates = Object.keys(blocksByDate).sort();
+  
+  if (sortedDates.length === 0) {
+    html = "<p style='text-align: center; color: #999;'>No blocks scheduled.</p>";
+  } else {
+    sortedDates.forEach(dateStr => {
+      const dateParts = dateStr.split("-");
+      const formattedDate = `${dateParts[1]}/${dateParts[2]}/${dateParts[0]}`;
+      const dayName = getWeekdayName(new Date(dateStr + "T00:00:00"));
+      
+      html += `<div class="print-day-section">`;
+      html += `<h2>${dayName}, ${formattedDate}</h2>`;
+      
+      const dayBlocks = blocksByDate[dateStr].sort((a, b) => {
+        if (!a.startTime) return 1;
+        if (!b.startTime) return -1;
+        return a.startTime.localeCompare(b.startTime);
+      });
+      
+      dayBlocks.forEach(block => {
+        html += `<div class="print-block">`;
+        html += `<div class="print-block-header">`;
+        if (block.startTime) {
+          const time = block.startTime.split("T")[1].slice(0, 5);
+          const endTime = block.endTime ? block.endTime.split("T")[1].slice(0, 5) : "";
+          html += `<span class="print-time">${time}${endTime ? ` - ${endTime}` : ""}</span>`;
+        }
+        html += `<span class="print-title">${block.title || "Untitled"}</span>`;
+        if (block.recurring) {
+          html += `<span class="print-recurring">(Recurring)</span>`;
+        }
+        html += `</div>`;
+        
+        if (block.tasks && block.tasks.length > 0) {
+          html += `<ul class="print-tasks">`;
+          block.tasks.forEach(task => {
+            const checked = task.completed ? "✓" : "○";
+            html += `<li>${checked} ${task.text}</li>`;
+          });
+          html += `</ul>`;
+        }
+        
+        if (block.notes) {
+          html += `<p class="print-notes">${block.notes}</p>`;
+        }
+        
+        html += `</div>`;
+      });
+      
+      html += `</div>`;
+    });
+  }
+  
+  printContent.innerHTML = html;
+  
+  // Small delay to ensure DOM is updated, then trigger print dialog
+  setTimeout(() => {
+    window.print();
+  }, 200);
 }
