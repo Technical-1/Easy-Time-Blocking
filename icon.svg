@@ -1,0 +1,86 @@
+<svg
+  width="512"
+  height="512"
+  viewBox="0 0 512 512"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!-- Background rounded square -->
+  <rect
+    x="32"
+    y="32"
+    width="448"
+    height="448"
+    rx="96"
+    fill="#2a3f47"
+  />
+
+  <!-- Clock circle -->
+  <circle
+    cx="176"
+    cy="176"
+    r="88"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="18"
+  />
+
+  <!-- Clock center dot -->
+  <circle
+    cx="176"
+    cy="176"
+    r="10"
+    fill="#FFFFFF"
+  />
+
+  <!-- Clock hands -->
+  <!-- Hour hand -->
+  <line
+    x1="176"
+    y1="176"
+    x2="176"
+    y2="128"
+    stroke="#FFFFFF"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+  <!-- Minute hand -->
+  <line
+    x1="176"
+    y1="176"
+    x2="220"
+    y2="176"
+    stroke="#FFFFFF"
+    stroke-width="12"
+    stroke-linecap="round"
+  />
+
+  <!-- Top-right block -->
+  <rect
+    x="288"
+    y="112"
+    width="120"
+    height="86"
+    rx="18"
+    fill="#FFFFFF"
+  />
+
+  <!-- Middle-right block -->
+  <rect
+    x="288"
+    y="222"
+    width="120"
+    height="86"
+    rx="18"
+    fill="#FFFFFF"
+  />
+
+  <!-- Bottom wide block -->
+  <rect
+    x="120"
+    y="332"
+    width="288"
+    height="86"
+    rx="22"
+    fill="#FFFFFF"
+  />
+</svg>
