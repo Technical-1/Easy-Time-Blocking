@@ -1512,6 +1512,32 @@ body, table, td {
   color: #666;
 }
 
+/* Site Footer */
+.site-footer {
+  padding: 1.5rem;
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  margin-top: 2rem;
+}
+.site-footer .footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+.site-footer .footer-link:hover {
+  color: var(--accent-color);
+}
+.site-footer .footer-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+}
+
 @media print {
   body * {
     visibility: hidden;
@@ -1532,7 +1558,7 @@ body, table, td {
   .print-block {
     page-break-inside: avoid;
   }
-  header, .view-buttons, .date-navigation, button {
+  header, .view-buttons, .date-navigation, button, .site-footer {
     display: none !important;
   }
 }
