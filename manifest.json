@@ -1,0 +1,23 @@
+{
+  "name": "Easy Time-Blocking",
+  "short_name": "Time-Block",
+  "description": "Plan your day with this free, offline-ready time-blocking app. Drag to create blocks, set recurring schedules, and boost your productivity.",
+  "start_url": ".",
+  "scope": ".",
+  "id": "easy-time-blocking",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#4F6D7A",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr"
+}
