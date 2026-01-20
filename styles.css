@@ -1197,16 +1197,52 @@ body, table, td {
 
 /* Mobile adjustments for redesigned popup */
 @media (max-width: 500px) {
+  .overlay {
+    align-items: flex-end;
+  }
+
   .popup-redesigned {
     max-width: 100%;
     width: 100%;
-    max-height: 100vh;
-    border-radius: 0;
+    max-height: 95vh;
+    max-height: 95dvh; /* Dynamic viewport height for mobile browsers */
+    border-radius: 16px 16px 0 0;
+    margin: 0;
+  }
+
+  .popup-header {
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .popup-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .popup-redesigned .popup-content {
+    padding: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .form-section {
+    margin-bottom: 12px;
   }
 
   .form-row {
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+  }
+
+  .form-label {
+    font-size: 0.75rem;
+  }
+
+  .form-input {
+    padding: 10px 12px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
   }
 
   .time-date-grid {
@@ -1218,14 +1254,33 @@ body, table, td {
     display: none;
   }
 
+  .selected-time-banner {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
+
   .popup-footer {
     flex-direction: column-reverse;
-    gap: 12px;
+    gap: 10px;
+    padding: 12px 16px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
   }
 
   .footer-left,
   .footer-right {
     width: 100%;
+  }
+
+  .footer-left {
+    display: flex;
+    gap: 8px;
+  }
+
+  .footer-left .btn {
+    flex: 1;
   }
 
   .footer-right {
@@ -1234,6 +1289,40 @@ body, table, td {
 
   .footer-right .btn {
     width: 100%;
+  }
+
+  .btn {
+    padding: 12px 16px;
+    font-size: 0.95rem;
+  }
+
+  /* Task list adjustments */
+  .task-item {
+    padding: 8px 0;
+  }
+
+  .add-task-btn {
+    padding: 10px;
+    font-size: 0.9rem;
+  }
+
+  /* Recurrence days - make tappable */
+  .recurrence-days label {
+    padding: 8px 12px;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Options section */
+  .options-section {
+    gap: 12px;
+  }
+
+  .checkbox-label {
+    padding: 8px 0;
   }
 }
 
