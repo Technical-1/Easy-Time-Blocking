@@ -626,7 +626,7 @@ body, table, td {
 .current-time td {
   position: relative;
 }
-.current-time td::after {
+.current-time td:not(.block-cell)::after {
   content: "";
   position: absolute;
   top: 50%;
