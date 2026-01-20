@@ -622,14 +622,16 @@ body, table, td {
 /* Highlight Current Time */
 .current-time td:first-child {
   background-color: var(--current-time-bg) !important;
+}
+.current-time td {
   position: relative;
 }
-.current-time td:first-child::after {
+.current-time td::after {
   content: "";
   position: absolute;
   top: 50%;
+  left: 0;
   right: 0;
-  width: 100vw;
   height: 2px;
   background-color: #e74c3c;
   pointer-events: none;
