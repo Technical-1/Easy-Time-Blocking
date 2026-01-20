@@ -2547,37 +2547,74 @@ function renderBlockContent(cell, block){
   titleDiv.textContent = block.title || "Untitled";
   cell.appendChild(titleDiv);
 
-  // Tasks
-  const tasksBox = document.createElement("div");
-  tasksBox.classList.add("tasks-box");
-  const tasksDiv = document.createElement("div");
-  tasksDiv.classList.add("tasks-container");
-  tasksBox.appendChild(tasksDiv);
-  cell.appendChild(tasksBox);
+  // Tasks - only show if there are tasks
+  const tasks = block.tasks || [];
+  if (tasks.length > 0) {
+    const tasksBox = document.createElement("div");
+    tasksBox.classList.add("tasks-box");
+    const tasksDiv = document.createElement("div");
+    tasksDiv.classList.add("tasks-container");
+    tasksBox.appendChild(tasksDiv);
+    cell.appendChild(tasksBox);
 
-  (block.tasks || []).forEach(task => {
-    const label = document.createElement("label");
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = !!task.completed;
+    tasks.forEach(task => {
+      const label = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!task.completed;
 
-    const span = document.createElement("span");
-    span.textContent = task.text;
-    if (task.completed) span.classList.add("strike");
+      const span = document.createElement("span");
+      span.textContent = task.text;
+      if (task.completed) span.classList.add("strike");
 
-    label.appendChild(cb);
-    label.appendChild(span);
-    tasksDiv.appendChild(label);
-  });
+      label.appendChild(cb);
+      label.appendChild(span);
+      tasksDiv.appendChild(label);
+    });
+  }
 
-  // Notes
-  const notesBox = document.createElement("div");
-  notesBox.classList.add("notes-box");
-  const notesArea = document.createElement("textarea");
-  notesArea.value = block.notes || "";
-  notesArea.rows = 2;
-  notesBox.appendChild(notesArea);
-  cell.appendChild(notesBox);
+  // Notes - only show if there are notes, otherwise show add button
+  const hasNotes = block.notes && block.notes.trim().length > 0;
+
+  if (hasNotes) {
+    const notesBox = document.createElement("div");
+    notesBox.classList.add("notes-box");
+    const notesArea = document.createElement("textarea");
+    notesArea.value = block.notes || "";
+    notesArea.rows = 2;
+    notesBox.appendChild(notesArea);
+    cell.appendChild(notesBox);
+  } else {
+    // Add notes button
+    const addNotesBtn = document.createElement("button");
+    addNotesBtn.classList.add("add-notes-btn");
+    addNotesBtn.textContent = "+ Notes";
+    addNotesBtn.type = "button";
+    addNotesBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Replace button with notes textarea
+      const notesBox = document.createElement("div");
+      notesBox.classList.add("notes-box");
+      const notesArea = document.createElement("textarea");
+      notesArea.value = "";
+      notesArea.rows = 2;
+      notesArea.placeholder = "Add notes...";
+      notesBox.appendChild(notesArea);
+      addNotesBtn.replaceWith(notesBox);
+      notesArea.focus();
+      // Save on blur
+      notesArea.addEventListener("blur", () => {
+        if (notesArea.value.trim()) {
+          block.notes = notesArea.value;
+          saveBlocksToStorage(timeBlocks);
+        } else {
+          // If empty, remove and show button again
+          displayDailyBlocks();
+        }
+      });
+    });
+    cell.appendChild(addNotesBtn);
+  }
 }
 
 function reorderBlocks(sourceBlock, targetBlock) {
