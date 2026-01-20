@@ -3103,6 +3103,8 @@ function exportData(format = "json") {
     archivedBlocks: archivedBlocks,
     colorPresets: colorPresets,
     hiddenTimes: hiddenTimes,
+    categories: categories,
+    blockTemplates: blockTemplates,
     exportDate: new Date().toISOString()
   };
   
@@ -3184,11 +3186,39 @@ function formatDataAsTxt(data) {
     txt += "No archived blocks.\n\n";
   }
   
+  txt += "\nCATEGORIES\n";
+  txt += "-".repeat(50) + "\n";
+  if (data.categories && data.categories.length > 0) {
+    data.categories.forEach(cat => {
+      txt += `  ${cat.name} (${cat.color})\n`;
+    });
+  } else {
+    txt += "No categories.\n";
+  }
+
+  txt += "\nTEMPLATES\n";
+  txt += "-".repeat(50) + "\n";
+  if (data.blockTemplates && data.blockTemplates.length > 0) {
+    data.blockTemplates.forEach((tmpl, index) => {
+      txt += `\nTemplate ${index + 1}: ${tmpl.title}\n`;
+      if (tmpl.category) txt += `  Category: ${tmpl.category}\n`;
+      if (tmpl.tasks && tmpl.tasks.length > 0) {
+        txt += `  Tasks: ${tmpl.tasks.map(t => t.text).join(", ")}\n`;
+      }
+      if (tmpl.notes) txt += `  Notes: ${tmpl.notes}\n`;
+    });
+  } else {
+    txt += "No templates.\n";
+  }
+
   txt += "\nSETTINGS\n";
   txt += "-".repeat(50) + "\n";
   txt += `Color Presets: ${data.colorPresets.length} colors\n`;
   txt += `Hidden Times: ${data.hiddenTimes.length} time slots\n`;
-  
+  if (data.hiddenTimes && data.hiddenTimes.length > 0) {
+    txt += `  Hidden: ${data.hiddenTimes.join(", ")}\n`;
+  }
+
   return txt;
 }
 
@@ -3206,20 +3236,27 @@ function parseTxtImport(txtContent) {
 
 function importData(data) {
   if (!data) return;
-  
+
   if (confirm("This will replace all your current data. Are you sure?")) {
     if (data.timeBlocks) timeBlocks = data.timeBlocks;
     if (data.archivedBlocks) archivedBlocks = data.archivedBlocks;
     if (data.colorPresets) colorPresets = data.colorPresets;
     if (data.hiddenTimes) hiddenTimes = data.hiddenTimes;
-    
+    if (data.categories) categories = data.categories;
+    if (data.blockTemplates) blockTemplates = data.blockTemplates;
+
     saveBlocksToStorage(timeBlocks);
     saveArchivedToStorage(archivedBlocks);
     saveColorPresetsToStorage(colorPresets);
     saveHiddenTimesToStorage(hiddenTimes);
-    
+    saveCategoriesToStorage(categories);
+    saveTemplatesToStorage(blockTemplates);
+
     populateColorCheckboxes();
     buildColorsContainer();
+    buildCategoriesContainer();
+    populateCategorySelect();
+    populateTemplateSelect();
     displayDailyBlocks();
     alert("Data imported successfully!");
   }
