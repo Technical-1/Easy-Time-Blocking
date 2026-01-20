@@ -86,12 +86,35 @@
 }
 
 /* Basic Page Layout */
+html {
+  /* Background MUST be on html element for iOS safe area */
+  background: linear-gradient(135deg, #4F6D7A 0%, #3a525c 100%);
+  background-color: #4F6D7A;
+}
+
+/* Dark mode html background */
+html[data-theme="dark"] {
+  background: linear-gradient(135deg, #2d4a57 0%, #1e3540 100%);
+  background-color: #2d4a57;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) {
+    background: linear-gradient(135deg, #2d4a57 0%, #1e3540 100%);
+    background-color: #2d4a57;
+  }
+}
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* iOS safe area padding */
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 header {
   background: var(--header-bg);
@@ -224,7 +247,8 @@ body, table, td {
 .view-buttons button,
 .nav-btn,
 .popup-buttons button,
-.plus-btn {
+.plus-btn,
+.add-notes-btn {
   touch-action: manipulation;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
 }
@@ -249,7 +273,8 @@ body, table, td {
 .tasks-box,
 .notes-box,
 .tasks-container input[type="checkbox"],
-.notes-box textarea {
+.notes-box textarea,
+.add-notes-btn {
   touch-action: auto;
 }
 
@@ -571,6 +596,25 @@ body, table, td {
   font-family: Arial, sans-serif;
   font-size: 0.9rem;
   resize: vertical;
+}
+
+/* Add notes button on blocks */
+.add-notes-btn {
+  display: inline-block;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px dashed rgba(0, 0, 0, 0.3);
+  border-radius: 0.25rem;
+  color: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.add-notes-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.5);
+  color: rgba(0, 0, 0, 0.8);
 }
 
 /* Highlight Current Time */
@@ -1609,6 +1653,7 @@ body, table, td {
 /* Site Footer */
 .site-footer {
   padding: 1.5rem;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   text-align: center;
   border-top: 1px solid var(--border-color);
   background-color: var(--bg-secondary);
