@@ -327,6 +327,7 @@ const templateSelect = document.getElementById("template-select");
 const templateSection = document.getElementById("template-section");
 const blockCategorySelect = document.getElementById("block-category");
 const categoryColorSwatch = document.getElementById("category-color-swatch");
+const customColorSection = document.getElementById("custom-color-section");
 const blockColorInput = document.getElementById("block-color");
 const blockColorHex = document.getElementById("block-color-hex");
 const selectedTimeDisplay = document.getElementById("selected-time-display");
@@ -630,12 +631,16 @@ function setupTemplateHandlers() {
         }
       }
 
-      // Update category color swatch
+      // Update category color swatch and custom color visibility
       if (categoryColorSwatch && template.category) {
         const catColor = getCategoryColor(template.category);
         categoryColorSwatch.style.backgroundColor = catColor || 'transparent';
+        // Hide custom color when template has category
+        if (customColorSection) customColorSection.style.display = 'none';
       } else if (categoryColorSwatch) {
         categoryColorSwatch.style.backgroundColor = 'transparent';
+        // Show custom color when template has no category
+        if (customColorSection) customColorSection.style.display = '';
       }
 
       // Add tasks if specified
@@ -673,15 +678,19 @@ function setupColorPickerHandlers() {
     });
   }
 
-  // Category select handler - updates color swatch
+  // Category select handler - updates color swatch and toggles custom color visibility
   if (blockCategorySelect && categoryColorSwatch) {
     blockCategorySelect.addEventListener("change", (e) => {
       const categoryId = e.target.value;
       if (categoryId) {
         const color = getCategoryColor(categoryId);
         categoryColorSwatch.style.backgroundColor = color || 'transparent';
+        // Hide custom color picker when category is selected
+        if (customColorSection) customColorSection.style.display = 'none';
       } else {
         categoryColorSwatch.style.backgroundColor = 'transparent';
+        // Show custom color picker when no category
+        if (customColorSection) customColorSection.style.display = '';
       }
     });
   }
@@ -2227,12 +2236,16 @@ if (blockData) {
     blockColorHex.textContent = blockColor.toUpperCase();
   }
 
-  // Update category color swatch
+  // Update category color swatch and custom color visibility
   if (categoryColorSwatch && blockData.category) {
     const catColor = getCategoryColor(blockData.category);
     categoryColorSwatch.style.backgroundColor = catColor || 'transparent';
+    // Hide custom color when category is set
+    if (customColorSection) customColorSection.style.display = 'none';
   } else if (categoryColorSwatch) {
     categoryColorSwatch.style.backgroundColor = 'transparent';
+    // Show custom color when no category
+    if (customColorSection) customColorSection.style.display = '';
   }
 
   // Build tasks
@@ -2291,6 +2304,11 @@ if (blockData) {
     categoryColorSwatch.style.backgroundColor = 'transparent';
   }
 
+  // Show custom color picker in create mode (no category selected by default)
+  if (customColorSection) {
+    customColorSection.style.display = '';
+  }
+
   // Set default color picker value
   if (blockColorInput) {
     blockColorInput.value = colorPresets[0];
@@ -2341,8 +2359,14 @@ if(!title){
   return;
 }
 const notesVal = blockNotesInput.value.trim();
-// Get color from color picker
-let colorVal = blockColorInput ? blockColorInput.value : colorPresets[0];
+// Get color: use category color if category selected, otherwise use custom color picker
+const selectedCategory = blockCategorySelect ? blockCategorySelect.value : "";
+let colorVal;
+if (selectedCategory) {
+  colorVal = getCategoryColor(selectedCategory) || colorPresets[0];
+} else {
+  colorVal = blockColorInput ? blockColorInput.value : colorPresets[0];
+}
 const recurring = recurringCheckbox.checked;
 const carryOver = document.getElementById("carryover-checkbox").checked;
 
