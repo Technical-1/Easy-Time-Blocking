@@ -1992,6 +1992,10 @@ function handleTouchStart(e){
     return;
   }
 
+  // IMPORTANT: Prevent default immediately to stop pull-to-refresh
+  // This must happen before the browser decides to start its native gesture
+  e.preventDefault();
+
   // Store touch start state
   touchStartX = touch.clientX;
   touchStartY = touch.clientY;

@@ -237,7 +237,12 @@ body, table, td {
 
 /* Table cells need special touch handling */
 #daily-view td[data-time-slot] {
-  touch-action: pan-y pinch-zoom;
+  touch-action: none;
+}
+
+/* Prevent pull-to-refresh when interacting with the daily view */
+#daily-view {
+  overscroll-behavior: contain;
 }
 
 /* Interactive elements inside blocks should work normally */
