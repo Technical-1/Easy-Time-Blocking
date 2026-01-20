@@ -2003,9 +2003,13 @@ function handleTouchStart(e){
   touchStartCell = cell;
   isTouchDragging = false;
 
+  // Reset any previous selection state
+  clearSelectedCells();
+
   // Start selection immediately for visual feedback
   isMouseDown = true;
   startCell = cell;
+  endCell = cell;  // Initialize endCell to startCell for single-cell default
   startCell.classList.add("selected");
 }
 
@@ -2874,10 +2878,20 @@ if (!startTd || !endTd || !startTd.parentElement || !endTd.parentElement) return
 const startRow = startTd.parentElement.sectionRowIndex;
 const endRow = endTd.parentElement.sectionRowIndex;
 
-if (startRow === undefined || endRow === undefined) return null;
+// Validate row indices are valid numbers
+if (startRow === undefined || endRow === undefined ||
+    typeof startRow !== 'number' || typeof endRow !== 'number' ||
+    isNaN(startRow) || isNaN(endRow) ||
+    startRow < 0 || endRow < 0) return null;
 
 const minR = Math.min(startRow, endRow);
 const maxR = Math.max(startRow, endRow);
+
+// Sanity check: block shouldn't span more than 48 slots (full day)
+if (maxR - minR > 48) {
+  console.warn('computeTimeRangeFromSelection: Invalid range detected, resetting to start cell only');
+  return null;
+}
 
 const dailyBody = document.getElementById("daily-body");
 if (!dailyBody || !dailyBody.rows[minR] || !dailyBody.rows[maxR]) return null;
