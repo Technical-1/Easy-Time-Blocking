@@ -216,6 +216,60 @@ function saveTemplatesToStorage(arr){
   }
 }
 
+// Daily task state for recurring blocks - tracks task completion per day
+// Structure: { "YYYY-MM-DD": { "blockId": { "taskText": completed } } }
+function loadDailyTaskStateFromStorage(){
+  try {
+    const data = localStorage.getItem("dailyTaskState");
+    return data ? JSON.parse(data) : {};
+  } catch (e) {
+    console.error("Error loading daily task state:", e);
+    return {};
+  }
+}
+
+function saveDailyTaskStateToStorage(obj){
+  try {
+    localStorage.setItem("dailyTaskState", JSON.stringify(obj));
+  } catch (e) {
+    console.error("Error saving daily task state:", e);
+  }
+}
+
+// Get task completion state for a specific block on a specific date
+function getDailyTaskState(dateStr, blockId, taskText){
+  const state = loadDailyTaskStateFromStorage();
+  return state[dateStr]?.[blockId]?.[taskText] ?? null;
+}
+
+// Set task completion state for a specific block on a specific date
+function setDailyTaskState(dateStr, blockId, taskText, completed){
+  const state = loadDailyTaskStateFromStorage();
+  if (!state[dateStr]) state[dateStr] = {};
+  if (!state[dateStr][blockId]) state[dateStr][blockId] = {};
+  state[dateStr][blockId][taskText] = completed;
+  saveDailyTaskStateToStorage(state);
+}
+
+// Clean up old daily task states (keep last 30 days)
+function cleanupOldDailyTaskState(){
+  const state = loadDailyTaskStateFromStorage();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = formatDate(cutoff);
+
+  let changed = false;
+  for (const dateStr of Object.keys(state)) {
+    if (dateStr < cutoffStr) {
+      delete state[dateStr];
+      changed = true;
+    }
+  }
+  if (changed) {
+    saveDailyTaskStateToStorage(state);
+  }
+}
+
 /***************************************************
 * PWA - Service Worker Registration & Install Prompt
 **************************************************/
@@ -406,6 +460,9 @@ btnDaily.classList.add("active");
 
 // Initialize theme
 initializeTheme();
+
+// Clean up old daily task state (keep last 30 days)
+cleanupOldDailyTaskState();
 
 // Initialize categories and templates
 populateCategorySelect();
@@ -1136,7 +1193,12 @@ addTaskRow("");
 recurringCheckbox.addEventListener("change", () => {
 recurrenceDaysDiv.style.display = recurringCheckbox.checked ? "flex" : "none";
 const carryoverLabel = document.getElementById("carryover-label");
+const preserveStateLabel = document.getElementById("preserve-state-label");
 carryoverLabel.style.display = recurringCheckbox.checked ? "flex" : "none";
+// Hide preserve-state if recurring is unchecked
+if (!recurringCheckbox.checked) {
+  preserveStateLabel.style.display = "none";
+}
 
 // Disable/enable date input for recurring blocks
 if (blockDateInput) {
@@ -1145,6 +1207,12 @@ if (blockDateInput) {
     blockDateInput.value = formatDate(currentDate); // Set to current date
   }
 }
+});
+
+// Show/hide preserve-state checkbox when carry-over is toggled
+document.getElementById("carryover-checkbox").addEventListener("change", (e) => {
+  const preserveStateLabel = document.getElementById("preserve-state-label");
+  preserveStateLabel.style.display = e.target.checked ? "flex" : "none";
 });
 saveBtn.addEventListener("click", handleSaveBlock);
 saveBtn.addEventListener("touchend", (e) => {
@@ -1472,19 +1540,32 @@ function setupBlockEventDelegation() {
       const taskText = checkbox.nextElementSibling?.textContent;
       if (blockId && taskText) {
         const block = timeBlocks.blocks.find(b => b.id === blockId);
-        if (block && block.tasks) {
-          const task = block.tasks.find(t => t.text === taskText);
-          if (task) {
-            task.completed = checkbox.checked;
-            const span = checkbox.nextElementSibling;
-            if (span) {
-              if (checkbox.checked) span.classList.add("strike");
-              else span.classList.remove("strike");
+        if (block) {
+          const span = checkbox.nextElementSibling;
+          if (span) {
+            if (checkbox.checked) span.classList.add("strike");
+            else span.classList.remove("strike");
+          }
+
+          if (block.recurring) {
+            // For recurring blocks, store task state in daily override
+            // This keeps the template clean and each day independent
+            const todayStr = formatDate(currentDate);
+            setDailyTaskState(todayStr, blockId, taskText, checkbox.checked);
+          } else {
+            // For non-recurring blocks, update the block directly
+            if (block.tasks) {
+              const task = block.tasks.find(t => t.text === taskText);
+              if (task) {
+                task.completed = checkbox.checked;
+              }
             }
             saveBlocksToStorage(timeBlocks);
-            const dayBlocks = getCurrentDayBlocks();
-            checkAllTasksCompletion(dayBlocks);
           }
+
+          // Update completion check with proper display blocks
+          const dayBlocks = getCurrentDayBlocks().map(b => applyCarryOverData(b));
+          checkAllTasksCompletion(dayBlocks);
         }
       }
     }
@@ -1655,7 +1736,9 @@ const dailyBlocks = timeBlocks.blocks.filter(b => {
 });
 
 renderBlocksDaily(dailyBlocks);
-checkAllTasksCompletion(dailyBlocks);
+// For task completion check, use display blocks with proper daily task state
+const displayBlocks = dailyBlocks.map(b => applyCarryOverData(b, todayStr));
+checkAllTasksCompletion(displayBlocks);
 checkForEmptyDay();
 }
 
@@ -1858,7 +1941,12 @@ cell.appendChild(notesBox);
 **************************************************/
 function autoArchiveOldBlocks(){
 const todayStr = formatDate(new Date());
+const today = new Date();
 const stillActive = [];
+
+// Archive recurring blocks from yesterday (with their daily task state)
+archiveRecurringBlocksForPastDays(today);
+
 timeBlocks.blocks.forEach(b => {
   if(b.archived){
     stillActive.push(b);
@@ -1880,6 +1968,55 @@ timeBlocks.blocks = stillActive;
 saveBlocksToStorage(timeBlocks);
 saveArchivedToStorage(archivedBlocks);
 }
+
+// Archive recurring block instances for past days that have daily task state
+function archiveRecurringBlocksForPastDays(today) {
+  const dailyState = loadDailyTaskStateFromStorage();
+  const todayStr = formatDate(today);
+
+  // Process each past day that has daily task state
+  for (const dateStr of Object.keys(dailyState)) {
+    if (dateStr >= todayStr) continue; // Skip today and future
+
+    // Check if we already archived recurring blocks for this date
+    const dayArchive = archivedBlocks.days?.[dateStr] || [];
+
+    // Find recurring blocks that should have appeared on this date
+    const pastDate = new Date(dateStr + "T12:00:00");
+    const dayName = getWeekdayName(pastDate);
+
+    timeBlocks.blocks.forEach(block => {
+      if (!block.recurring || !block.recurrenceDays) return;
+      if (!block.recurrenceDays.includes(dayName)) return;
+
+      // Check if already archived for this date
+      const alreadyArchived = dayArchive.some(a =>
+        a.recurringBlockId === block.id
+      );
+      if (alreadyArchived) return;
+
+      // Create archive entry with the daily task state
+      const taskState = dailyState[dateStr]?.[block.id] || {};
+      const archivedTasks = (block.tasks || []).map(t => ({
+        text: t.text,
+        completed: taskState[t.text] ?? false
+      }));
+
+      // Archive this recurring block instance
+      if (!archivedBlocks.days[dateStr]) archivedBlocks.days[dateStr] = [];
+      archivedBlocks.days[dateStr].push({
+        title: block.title,
+        notes: block.notes,
+        color: block.color,
+        tasks: archivedTasks,
+        recurring: true,
+        recurringBlockId: block.id,
+        startTime: block.startTime,
+        endTime: block.endTime
+      });
+    });
+  }
+}
 function addBlockToArchive(dayStr, blockData){
   if(!archivedBlocks.days[dayStr]) archivedBlocks.days[dayStr] = [];
   archivedBlocks.days[dayStr].push({
@@ -1897,10 +2034,39 @@ function addBlockToArchive(dayStr, blockData){
 /***************************************************
 * Carry Over Feature for Recurring Blocks
 **************************************************/
-// Find the most recent archived instance of a recurring block
+// Find the most recent past instance of a recurring block (from archives or daily state)
 function findMostRecentArchivedInstance(block) {
   if (!block.recurring || !block.carryOver) return null;
 
+  const todayStr = formatDate(currentDate);
+
+  // First check daily task state for yesterday (may not be archived yet)
+  const dailyState = loadDailyTaskStateFromStorage();
+  const stateDays = Object.keys(dailyState).filter(d => d < todayStr).sort().reverse();
+
+  for (const dayKey of stateDays) {
+    const blockState = dailyState[dayKey]?.[block.id];
+    if (blockState && Object.keys(blockState).length > 0) {
+      // Check if this block was active on this day (correct weekday)
+      const pastDate = new Date(dayKey + "T12:00:00");
+      const dayName = getWeekdayName(pastDate);
+      if (block.recurrenceDays?.includes(dayName)) {
+        // Build a pseudo-archived instance from daily state
+        return {
+          title: block.title,
+          notes: block.notes,
+          tasks: (block.tasks || []).map(t => ({
+            text: t.text,
+            completed: blockState[t.text] ?? false
+          })),
+          recurring: true,
+          recurringBlockId: block.id
+        };
+      }
+    }
+  }
+
+  // Fall back to archived instances
   const archivedDays = Object.keys(archivedBlocks.days || {}).sort().reverse();
 
   for (const dayKey of archivedDays) {
@@ -1917,32 +2083,70 @@ function findMostRecentArchivedInstance(block) {
 }
 
 // Apply carry over data from archived instance to current block for display
-function applyCarryOverData(block) {
-  if (!block.recurring || !block.carryOver) return block;
+function applyCarryOverData(block, dateStr) {
+  // For non-recurring blocks, return as-is
+  if (!block.recurring) return block;
 
-  const archivedInstance = findMostRecentArchivedInstance(block);
-  if (!archivedInstance) return block;
+  // Create a copy to avoid modifying the template
+  const displayBlock = { ...block };
 
-  // Create a copy with carried-over data
-  const blockWithCarryOver = { ...block };
+  // For recurring blocks, always start with tasks unchecked (fresh from template)
+  // Then apply carry-over if enabled, then apply today's task state
+  if (displayBlock.tasks && displayBlock.tasks.length > 0) {
+    displayBlock.tasks = displayBlock.tasks.map(t => ({
+      text: t.text,
+      completed: false // Always start fresh for recurring blocks
+    }));
+  }
 
-  // Carry over tasks - preserve text but reset completion status for new day
-  // unless the block already has tasks defined
-  if (archivedInstance.tasks && archivedInstance.tasks.length > 0) {
-    if (!block.tasks || block.tasks.length === 0) {
-      blockWithCarryOver.tasks = archivedInstance.tasks.map(t => ({
-        text: t.text,
-        completed: false // Reset completion for the new day
-      }));
+  // Apply carry-over data if enabled
+  if (block.carryOver) {
+    const archivedInstance = findMostRecentArchivedInstance(block);
+    if (archivedInstance) {
+      // Carry over tasks
+      if (archivedInstance.tasks && archivedInstance.tasks.length > 0) {
+        if (!displayBlock.tasks || displayBlock.tasks.length === 0) {
+          // Block has no template tasks, use archived tasks
+          displayBlock.tasks = archivedInstance.tasks.map(t => ({
+            text: t.text,
+            // If preserveTaskState is true, keep the completion state from archive
+            // Otherwise reset to unchecked
+            completed: block.preserveTaskState ? t.completed : false
+          }));
+        } else if (block.preserveTaskState) {
+          // Block has template tasks AND preserveTaskState is enabled
+          // Apply archived completion state to matching tasks
+          displayBlock.tasks = displayBlock.tasks.map(t => {
+            const archivedTask = archivedInstance.tasks.find(at => at.text === t.text);
+            return {
+              text: t.text,
+              completed: archivedTask ? archivedTask.completed : false
+            };
+          });
+        }
+      }
+
+      // Carry over notes if block doesn't have notes
+      if (archivedInstance.notes && !displayBlock.notes) {
+        displayBlock.notes = archivedInstance.notes;
+      }
     }
   }
 
-  // Carry over notes if block doesn't have notes
-  if (archivedInstance.notes && !block.notes) {
-    blockWithCarryOver.notes = archivedInstance.notes;
+  // Apply today's task state (overrides the fresh/carry-over state)
+  const todayStr = dateStr || formatDate(currentDate);
+  if (displayBlock.tasks && displayBlock.tasks.length > 0) {
+    displayBlock.tasks = displayBlock.tasks.map(t => {
+      const dailyState = getDailyTaskState(todayStr, block.id, t.text);
+      return {
+        text: t.text,
+        // Use daily state if set, otherwise keep current (unchecked)
+        completed: dailyState !== null ? dailyState : t.completed
+      };
+    });
   }
 
-  return blockWithCarryOver;
+  return displayBlock;
 }
 
 /***************************************************
@@ -2176,8 +2380,12 @@ if (blockData) {
   recurringCheckbox.checked = !!blockData.recurring;
   recurrenceDaysDiv.style.display = blockData.recurring ? "flex" : "none";
   const carryoverLabel = document.getElementById("carryover-label");
+  const preserveStateLabel = document.getElementById("preserve-state-label");
   carryoverLabel.style.display = blockData.recurring ? "flex" : "none";
   document.getElementById("carryover-checkbox").checked = !!blockData.carryOver;
+  // Show preserve-state only if both recurring and carry-over are enabled
+  preserveStateLabel.style.display = (blockData.recurring && blockData.carryOver) ? "flex" : "none";
+  document.getElementById("preserve-state-checkbox").checked = !!blockData.preserveTaskState;
 
   // Set category value
   if (blockCategorySelect) {
@@ -2369,6 +2577,7 @@ if (selectedCategory) {
 }
 const recurring = recurringCheckbox.checked;
 const carryOver = document.getElementById("carryover-checkbox").checked;
+const preserveTaskState = document.getElementById("preserve-state-checkbox").checked;
 
 const recDays = [];
 if(recurring){
@@ -2389,6 +2598,7 @@ if(editBlockId){
   block.recurring = recurring;
   block.recurrenceDays = recDays;
   block.carryOver = carryOver;
+  block.preserveTaskState = preserveTaskState;
   block.category = blockCategorySelect ? blockCategorySelect.value : "";
 
   const oldTasks = block.tasks || [];
@@ -2447,6 +2657,7 @@ if(editBlockId){
     color: colorVal,
     recurring,
     carryOver,
+    preserveTaskState,
     recurrenceDays: recDays,
     tasks: tasksArr,
     category: blockCategorySelect ? blockCategorySelect.value : ""
@@ -2515,6 +2726,7 @@ function duplicateBlock(blockToDuplicate) {
     recurring: blockToDuplicate.recurring || false,
     recurrenceDays: blockToDuplicate.recurrenceDays ? [...blockToDuplicate.recurrenceDays] : [],
     carryOver: blockToDuplicate.carryOver || false,
+    preserveTaskState: blockToDuplicate.preserveTaskState || false,
     tasks: blockToDuplicate.tasks ? blockToDuplicate.tasks.map(t => ({ text: t.text, completed: false })) : [],
     startTime: blockToDuplicate.startTime,
     endTime: blockToDuplicate.endTime,
@@ -3085,6 +3297,9 @@ recurrenceDaysDiv.querySelectorAll("input[type='checkbox']").forEach(chk=>chk.ch
 const carryoverLabel = document.getElementById("carryover-label");
 carryoverLabel.style.display="none";
 document.getElementById("carryover-checkbox").checked=false;
+const preserveStateLabel = document.getElementById("preserve-state-label");
+preserveStateLabel.style.display="none";
+document.getElementById("preserve-state-checkbox").checked=false;
 if (blockDateInput) {
   blockDateInput.value = formatDate(currentDate);
   blockDateInput.disabled = false;
