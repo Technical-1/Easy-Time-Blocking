@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    .og-card {
+      width: 1200px;
+      height: 630px;
+      background: #1a2a32;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #ffffff;
+    }
+
+    /* Animated-looking diagonal gradient streaks */
+    .og-card::before {
+      content: '';
+      position: absolute;
+      inset: -50%;
+      background:
+        conic-gradient(from 160deg at 30% 40%, transparent 0deg, rgba(79,109,122,0.3) 40deg, transparent 80deg),
+        conic-gradient(from 320deg at 70% 60%, transparent 0deg, rgba(90,138,154,0.25) 50deg, transparent 100deg);
+      animation: none;
+    }
+
+    /* Large glowing orb top-right */
+    .glow-1 {
+      position: absolute;
+      top: -120px;
+      right: -80px;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(79,109,122,0.6) 0%, rgba(79,109,122,0.15) 40%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* Smaller warm accent glow bottom-left */
+    .glow-2 {
+      position: absolute;
+      bottom: -100px;
+      left: -60px;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(90,138,154,0.4) 0%, rgba(58,82,92,0.1) 50%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* Subtle noise texture overlay */
+    .noise {
+      position: absolute;
+      inset: 0;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+
+    /* Decorative floating time blocks in background */
+    .float-block {
+      position: absolute;
+      border-radius: 12px;
+      opacity: 0.08;
+      background: #ffffff;
+    }
+    .fb-1 { width: 180px; height: 60px; top: 60px; left: 40px; transform: rotate(-6deg); }
+    .fb-2 { width: 140px; height: 50px; top: 140px; left: 100px; transform: rotate(3deg); }
+    .fb-3 { width: 200px; height: 55px; top: 80px; right: 60px; transform: rotate(4deg); }
+    .fb-4 { width: 160px; height: 50px; bottom: 100px; right: 80px; transform: rotate(-3deg); }
+    .fb-5 { width: 120px; height: 45px; bottom: 60px; left: 60px; transform: rotate(5deg); }
+    .fb-6 { width: 100px; height: 40px; top: 220px; right: 180px; transform: rotate(-8deg); opacity: 0.05; }
+    .fb-7 { width: 150px; height: 48px; bottom: 170px; left: 200px; transform: rotate(2deg); opacity: 0.06; }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 28px;
+    }
+
+    .title {
+      font-size: 120px;
+      font-weight: 800;
+      letter-spacing: -4px;
+      line-height: 1;
+      text-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    }
+
+    .tagline {
+      font-size: 38px;
+      font-weight: 400;
+      color: rgba(255,255,255,0.65);
+      line-height: 1.3;
+      max-width: 800px;
+      letter-spacing: -0.3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="og-card">
+    <!-- Background effects -->
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
+    <div class="noise"></div>
+
+    <!-- Floating time block shapes -->
+    <div class="float-block fb-1"></div>
+    <div class="float-block fb-2"></div>
+    <div class="float-block fb-3"></div>
+    <div class="float-block fb-4"></div>
+    <div class="float-block fb-5"></div>
+    <div class="float-block fb-6"></div>
+    <div class="float-block fb-7"></div>
+
+    <div class="content">
+      <div class="title">Easy Time-Blocking</div>
+      <div class="tagline">Plan your day visually. Free, offline, private.</div>
+    </div>
+  </div>
+</body>
+</html>
