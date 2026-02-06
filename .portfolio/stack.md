@@ -113,8 +113,10 @@ timeBlocks: {
     recurring: boolean,
     recurrenceDays: ["Mon", "Wed", ...],
     carryOver: boolean,
+    preserveTaskState: boolean,
     startTime: "YYYY-MM-DDTHH:mm",
-    endTime: "YYYY-MM-DDTHH:mm"
+    endTime: "YYYY-MM-DDTHH:mm",
+    archived: boolean
   }]
 }
 

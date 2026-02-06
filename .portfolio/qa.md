@@ -34,13 +34,19 @@ The app tracks productivity metrics including total time blocked, task completio
 Full light/dark mode support with automatic detection of system preference. The theme toggle offers three options: auto (system), light, and dark.
 
 ### Export and Import
-Users can export their data as JSON (for backup) or TXT (for readability). Data can be imported back, allowing transfer between devices or browsers.
+Users can export their data as JSON (for backup) or TXT (for readability), including categories and templates. Data can be imported back, allowing transfer between devices or browsers.
 
 ### Browser Notifications
 Optional notifications alert users 5 minutes before each block starts, helping them stay on schedule throughout the day.
 
 ### Print View
 A printer-friendly view generates clean, formatted schedules suitable for physical copies or PDF export.
+
+### Current Time Indicator
+A red line drawn across the entire schedule row shows the current time, updating every minute. This gives users an at-a-glance sense of where they are in their day.
+
+### Preserve Task State for Recurring Blocks
+Recurring blocks with carry-over can optionally preserve task completion state across days, so checked-off tasks stay checked rather than resetting each occurrence.
 
 ## Technical Highlights
 
@@ -86,7 +92,7 @@ Rather than reaching for libraries, I built everything from first principles:
 - Theming without CSS-in-JS libraries
 - UUID generation using native `crypto.randomUUID()`
 
-This resulted in a ~150KB total bundle size with instant load times.
+This resulted in a ~190KB total bundle size with instant load times.
 
 ## Frequently Asked Questions
 

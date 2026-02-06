@@ -1,105 +1,107 @@
-# Easy Time-Blocking App
+# Easy Time-Blocking
 
-A simple, powerful web-based time-blocking application that helps you organize your day by scheduling tasks into dedicated time blocks. Perfect for improving focus, productivity, and time management.
+A free, privacy-first web app for organizing your day using the time-blocking productivity method.
 
-🌐 **Live Demo**: [https://technical-1.github.io/Easy-Time-Blocking/](https://technical-1.github.io/Easy-Time-Blocking/)
+Built as a Progressive Web App with zero dependencies — runs entirely in the browser with all data stored locally in localStorage. No accounts, no cloud, no tracking.
 
-## Usage Tips
-
-- **Start Small**: Begin by blocking just 2-4 hours a day, then gradually expand
-- **Leave Buffer Time**: Don't plan every minute - leave some flexible time for unexpected tasks
-- **Use Colors Wisely**: Color-code by activity type (work, personal, exercise, etc.)
-- **Review Regularly**: Check your Statistics to see patterns in your time allocation
-- **Be Flexible**: Adjust blocks as needed - time blocking should help, not stress you out
+**Live Demo**: [https://technical-1.github.io/Easy-Time-Blocking/](https://technical-1.github.io/Easy-Time-Blocking/)
 
 ## Features
 
-### 📅 Daily View
-- **Visual Schedule**: See your entire day laid out in a clear, visual format with 30-minute time slots (12-hour format)
-- **Easy Block Creation**: Drag across time slots on desktop or touch-drag on mobile to create new blocks
-- **Quick Editing**: Click or tap on any block to edit its details
-- **Date Navigation**: Navigate between days with Previous Day, Today, and Next Day buttons
-- **Keyboard Shortcuts**: 
-  - Arrow keys (← →) to navigate dates
-  - `T` or `Home` to jump to today
-  - `Esc` to close modals
+- **Visual Drag-to-Create** - Click and drag across time slots (desktop) or touch-drag (mobile) to create blocks
+- **Current Time Indicator** - Red line across the schedule showing the current time
+- **Recurring Blocks** - Set blocks to repeat on specific weekdays with optional task/note carry-over
+- **Task Management** - Add multiple tasks per block with completion checkboxes
+- **Categories & Templates** - Organize blocks by category and save frequently-used configurations as templates
+- **Statistics Dashboard** - Track productivity metrics, task completion rates, and time distribution
+- **Archive** - Automatic archiving of past days with full browsable history
+- **Search** - Search across all blocks by title, notes, or tasks
+- **Dark Mode** - Light/dark theme with automatic system preference detection
+- **Notifications** - Optional browser notifications 5 minutes before each block starts
+- **Export/Import** - Export data as JSON or TXT, import backups, and print schedules
+- **PWA** - Installable on mobile and desktop, works offline
 
-### ✅ Tasks & Notes
-- **Task Management**: Add multiple tasks to each block with completion checkboxes
-- **Notes Section**: Add contextual notes to each block
-- **Task Completion**: Track your progress - complete all tasks in a day to see a celebratory message! 🍪
-- **Inline Editing**: Edit notes directly in the schedule view
+## Tech Stack
 
-### 🔄 Recurring Blocks
-- **Weekly Recurrence**: Set blocks to repeat on specific weekdays (e.g., every Monday & Wednesday)
-- **Automatic Scheduling**: Recurring blocks automatically appear on their designated days
-- **Carry Over**: Option to carry over tasks and notes from previous occurrences
+- **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
+- **Storage**: localStorage (client-side only)
+- **Hosting**: GitHub Pages
+- **Offline**: Service Worker with stale-while-revalidate caching
 
-### 🎨 Customization
-- **Color Coding**: Organize different types of activities with customizable colors
-- **Color Presets**: Define and manage your own color presets (up to 10 colors)
-- **Hide Time Slots**: Customize your schedule by hiding unused time slots
-- **Flexible Display**: Show only the times you actually use
+## Getting Started
 
-### 📊 Statistics
-- **Productivity Insights**: View statistics on your time blocking habits
-- **Task Completion Rate**: Track how many tasks you've completed
-- **Time Allocation**: See total time scheduled across all blocks
-- **Block Counts**: View active and archived block counts
+### Prerequisites
 
-### 📚 Archive
-- **Automatic Archiving**: Blocks from past dates are automatically archived
-- **Historical View**: Browse archived days to review past schedules
-- **Complete History**: Access your full time-blocking history
+- A modern web browser (Chrome 80+, Firefox 75+, Safari 13+, Edge 80+)
 
-### 🔍 Search
-- **Quick Search**: Search across all blocks by title, notes, or tasks
-- **Search Results**: View and navigate to matching blocks
-- **Comprehensive Search**: Searches both active and archived blocks
+### Installation
 
-### ⚙️ Settings
-- **Time Slot Management**: Show or hide specific time slots
-- **Color Customization**: Add, remove, and customize block colors
-- **Data Management**: 
-  - Export your data as JSON or TXT
-  - Import previously exported data
-  - Print view for physical copies
-- **Local Storage**: All data is stored locally in your browser
+No installation required. Open `index.html` directly in a browser, or visit the [live demo](https://technical-1.github.io/Easy-Time-Blocking/).
 
-### 📖 About Page
-- **Learn About Time Blocking**: Comprehensive guide on the benefits and challenges of time blocking
-- **Best Practices**: Tips for finding the right balance between structure and flexibility
-- **How It Helps**: Information on how time blocking improves productivity and focus
+### Usage
 
-## Technical Details
+```bash
+# Option 1: Open directly
+open index.html
 
-### Data Storage
-All data is stored locally in your browser's localStorage as JSON:
-- `timeBlocks`: Active schedule blocks
-- `archivedBlocks`: Historical blocks from past days
-- `colorPresets`: Your custom color palette
-- `hiddenTimes`: Time slots you've chosen to hide
+# Option 2: Local server (for PWA/service worker testing)
+python -m http.server 8000
+# or
+npx serve
+```
 
-### Privacy
+### Keyboard Shortcuts
 
-This app runs entirely in your browser. All data is stored locally on your device. No data is sent to any server or third party. Your schedule is completely private.
+| Key | Action |
+|-----|--------|
+| `←` `→` | Navigate dates |
+| `T` / `Home` | Jump to today |
+| `Escape` | Close modals |
+| `Cmd/Ctrl+P` | Print view |
+| `Cmd/Ctrl+F` | Open search |
+| `Cmd/Ctrl+N` | New block |
 
-### File Structure
+## Development
+
+No build tools, package manager, or server required. Edit files and refresh.
+
+```bash
+# Run with live reload
+python -m http.server 8000
+
+# Deploy (GitHub Pages auto-deploys from main)
+git push origin main
+```
+
+## Project Structure
 
 ```
 Easy-Time-Blocking/
-├── index.html          # Main HTML file
-├── styles.css          # All styling
-├── script.js           # Application logic
-└── README.md           # This file
+├── index.html          # Single HTML file with all markup
+├── script.js           # Main application logic (~3700 lines)
+├── styles.css          # Complete styling with CSS custom properties
+├── modules/            # ES6 modules extracted from script.js
+│   ├── index.js        # Re-exports all modules
+│   ├── storage.js      # localStorage operations
+│   ├── utils.js        # Common utilities (UUID, formatting)
+│   ├── time.js         # Time parsing and conversion
+│   ├── search.js       # Search functionality
+│   ├── statistics.js   # Stats calculations
+│   ├── data.js         # Import/export
+│   ├── archive.js      # Archiving logic
+│   ├── print.js        # Print formatting
+│   ├── theme.js        # Dark mode support
+│   └── notifications.js # Browser notifications
+├── manifest.json       # PWA manifest for installability
+├── sw.js               # Service worker for offline support
+├── icon.svg            # App icon
+└── jk-logo.svg         # Footer logo
 ```
 
+## Privacy
 
+All data stays in your browser's localStorage. Nothing is sent to any server. No analytics, no tracking, no accounts.
 
-## Contributing
+## Author
 
-This is a simple, single-file application. Feel free to customize it for your own needs!
-
----
-
-**Enjoy better time management with Time-Blocking!** 🎯
+Jacob Kanfer - [GitHub](https://github.com/Technical-1)

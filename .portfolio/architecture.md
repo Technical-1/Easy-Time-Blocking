@@ -125,13 +125,13 @@ flowchart LR
 I made a deliberate choice to build this application with zero external dependencies. This decision was driven by several factors:
 
 - **Simplicity**: No build step, no package manager, no node_modules. Just open `index.html` and it works.
-- **Performance**: No framework overhead means faster load times and smaller bundle size (~150KB total).
+- **Performance**: No framework overhead means faster load times and smaller bundle size (~190KB total).
 - **Longevity**: No dependency updates to manage, no security vulnerabilities from third-party code, no breaking changes from upstream packages.
 - **Learning**: Building everything from scratch forced me to deeply understand DOM manipulation, event handling, and state management.
 
 ### 2. Single-File vs Modular Code
 
-The main `script.js` file is large (~3000 lines), but I kept it as a single file initially for simplicity. Later, I refactored common utilities into ES6 modules (`/modules/`) for better organization while maintaining backward compatibility:
+The main `script.js` file is large (~3700 lines), but I kept it as a single file initially for simplicity. Later, I refactored common utilities into ES6 modules (`/modules/`) for better organization while maintaining backward compatibility:
 
 ```
 modules/
@@ -163,6 +163,10 @@ Data structures:
 - `colorPresets`, `categories`, `blockTemplates`: User preferences
 - `hiddenTimes`: Customized time slot visibility
 - `theme`: Light/dark mode preference
+
+### 8. Current Time Indicator
+
+I added a real-time red line across the schedule showing the current time. It highlights the current time slot row and updates every minute. The implementation required careful z-index management to ensure the line appears above block content but below modals.
 
 ### 4. Event Delegation Pattern
 
