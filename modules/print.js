@@ -111,7 +111,7 @@ export function buildPrintContent(timeBlocks, categories, getCategoryName) {
       const categoryName = block.category ? getCategoryName(block.category) : '';
 
       html += `<tr>`;
-      html += `<td>${days}</td>`;
+      html += `<td>${escapeHtml(days)}</td>`;
       html += `<td>`;
       html += `<strong>${escapeHtml(block.title)}</strong>`;
       if (categoryName) {

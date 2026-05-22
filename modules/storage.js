@@ -21,7 +21,7 @@ function _saveBlocksToStorageImmediate(obj) {
     localStorage.setItem("timeBlocks", JSON.stringify(obj));
   } catch (e) {
     console.error("Error saving blocks to storage:", e);
-    alert("Unable to save data. Your browser storage may be full or disabled.");
+    console.warn("Unable to save data. Your browser storage may be full or disabled.");
   }
 }
 
@@ -52,7 +52,7 @@ export function saveArchivedToStorage(obj) {
     localStorage.setItem("archivedBlocks", JSON.stringify(obj));
   } catch (e) {
     console.error("Error saving archived blocks:", e);
-    alert("Unable to save archived data.");
+    console.warn("Unable to save archived data.");
   }
 }
 
@@ -81,7 +81,7 @@ export function saveColorPresetsToStorage(arr) {
     localStorage.setItem("colorPresets", JSON.stringify(arr));
   } catch (e) {
     console.error("Error saving color presets:", e);
-    alert("Unable to save color preferences.");
+    console.warn("Unable to save color preferences.");
   }
 }
 

@@ -125,18 +125,43 @@ export function parseTxtImport(txtContent) {
  * @returns {Object|null} Validated data or null if invalid
  */
 export function validateImportData(data) {
-  // Check for required fields
+  if (!data || typeof data !== 'object') return null;
   if (!data.timeBlocks || !Array.isArray(data.timeBlocks.blocks)) {
     return null;
   }
 
+  const hexColorRe = /^#[0-9a-fA-F]{3,8}$/;
+
   return {
     timeBlocks: data.timeBlocks,
-    archivedBlocks: data.archivedBlocks || { days: {} },
-    colorPresets: data.colorPresets || [],
-    categories: data.categories || [],
-    blockTemplates: data.blockTemplates || [],
-    hiddenTimes: data.hiddenTimes || []
+    archivedBlocks: data.archivedBlocks && typeof data.archivedBlocks === 'object'
+      ? data.archivedBlocks
+      : { days: {} },
+    colorPresets: Array.isArray(data.colorPresets)
+      ? data.colorPresets.filter(c => typeof c === 'string' && hexColorRe.test(c)).slice(0, 50)
+      : [],
+    categories: Array.isArray(data.categories)
+      ? data.categories.filter(c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string').map(c => ({
+          id: c.id.slice(0, 100),
+          name: c.name.slice(0, 100),
+          color: typeof c.color === 'string' && hexColorRe.test(c.color) ? c.color : '#4F6D7A'
+        })).slice(0, 50)
+      : [],
+    blockTemplates: Array.isArray(data.blockTemplates)
+      ? data.blockTemplates.filter(t => t && typeof t === 'object' && typeof t.title === 'string').map(t => ({
+          title: t.title.slice(0, 200),
+          notes: typeof t.notes === 'string' ? t.notes.slice(0, 5000) : '',
+          category: typeof t.category === 'string' ? t.category.slice(0, 100) : '',
+          color: typeof t.color === 'string' && hexColorRe.test(t.color) ? t.color : '#4F6D7A',
+          tasks: Array.isArray(t.tasks) ? t.tasks.map(tk => ({
+            text: typeof tk.text === 'string' ? tk.text.slice(0, 500) : '',
+            completed: typeof tk.completed === 'boolean' ? tk.completed : false
+          })).slice(0, 100) : []
+        })).slice(0, 50)
+      : [],
+    hiddenTimes: Array.isArray(data.hiddenTimes)
+      ? data.hiddenTimes.filter(t => typeof t === 'string' && t.length < 20).slice(0, 100)
+      : []
   };
 }
 

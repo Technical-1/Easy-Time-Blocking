@@ -1,0 +1,90 @@
+{
+  "tasks": [
+    {
+      "title": "Fix XSS vulnerability in buildPrintView via innerHTML",
+      "description": "In script.js:3697-3731, buildPrintView() interpolates raw user input (block.title, task.text, block.notes) into template literals assigned to innerHTML. An attacker can inject <img onerror=...> payloads via block titles that execute on print view. Apply escapeHtml() to all interpolated values or rebuild using DOM methods (createElement/textContent).",
+      "priority": "high"
+    },
+    {
+      "title": "Add Content Security Policy meta tag",
+      "description": "index.html has no Content Security Policy header or meta tag. Since the app loads no third-party scripts, a strict CSP is feasible: script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'. This is the last line of defense against any XSS.",
+      "priority": "high"
+    },
+    {
+      "title": "Validate and sanitize imported JSON data fields",
+      "description": "In script.js:3452-3478, importData() accepts JSON with zero field-level validation. Malicious block titles/notes with HTML payloads are stored to localStorage and later rendered via innerHTML in print view. Add schema validation: check types, truncate strings, strip HTML tags from all string fields.",
+      "priority": "high"
+    },
+    {
+      "title": "Fix service worker registration path for subdirectory deployments",
+      "description": "In script.js:279, service worker is registered with absolute path '/sw.js' which resolves to origin root on GitHub Pages, not the app subdirectory. This breaks offline support and claims scope over the entire origin. Change to './sw.js' with explicit scope: register('./sw.js', { scope: './' }).",
+      "priority": "high"
+    },
+    {
+      "title": "Implement focus trap in modal dialogs",
+      "description": "Modal dialogs (create block line 227, settings line 340, search line 406 in index.html) allow Tab key to escape to background elements. This is a WCAG 2.1 Level A violation. Implement focus trapping by intercepting Tab/Shift+Tab at modal boundaries and cycling focus within the modal.",
+      "priority": "high"
+    },
+    {
+      "title": "Fix color contrast failures for success buttons and muted text",
+      "description": "In styles.css, --text-muted: #999999 on white has 3.1:1 ratio (needs 4.5:1, change to #767676). --success-color: #5cb85c with white text has 3.2:1 ratio (change to #4ca84c or darker). Dark mode success color #4cae4c also fails at 3.0:1 on #2d2d2d. These are WCAG AA violations.",
+      "priority": "high"
+    },
+    {
+      "title": "Fix notification interval memory leak",
+      "description": "In script.js:541-546, startNotificationChecker() creates a setInterval but never stores the interval ID. disableNotifications() sets a flag but never calls clearInterval(). The checker runs indefinitely. Store the interval ID and clear it when notifications are disabled.",
+      "priority": "high"
+    },
+    {
+      "title": "Fix carry-over data bug with missing dateStr parameter",
+      "description": "In script.js:1766, renderBlocksDaily() calls applyCarryOverData(block) without passing todayStr, while line 1740 correctly passes it. The function defaults to currentDate when dateStr is undefined, causing recurring blocks to potentially display yesterday's task completion state.",
+      "priority": "high"
+    },
+    {
+      "title": "Replace all alert() calls with styled toast notifications",
+      "description": "13+ error/confirmation paths use browser alert() which is blocking, unstyled, and not screen-reader accessible. Replace with ARIA live region announcements or styled toast/snackbar components. Affected lines include script.js:102, 141, 509, 521, 858, 876, 1124, 1127, 2566, 2619, 2626, 2671.",
+      "priority": "medium"
+    },
+    {
+      "title": "Add prefers-reduced-motion support",
+      "description": "styles.css has 20+ transitions and animations but no @media (prefers-reduced-motion: reduce) query. Users with motion sensitivities will see all animations. Add a media query that sets animation-duration and transition-duration to near-zero for users who prefer reduced motion.",
+      "priority": "medium"
+    },
+    {
+      "title": "Add skip-to-main-content link for keyboard navigation",
+      "description": "index.html has no skip navigation link. Keyboard users must Tab through all header buttons to reach the schedule content. Add a visually hidden skip link after the body tag: <a href='#daily-view' class='skip-link'>Skip to main content</a> with CSS to show on focus.",
+      "priority": "medium"
+    },
+    {
+      "title": "Replace Math.random UUID with crypto.randomUUID()",
+      "description": "In script.js:3279-3283, generateUUID() uses Math.random() which is not cryptographically secure and has higher collision probability. Replace with the one-liner crypto.randomUUID() which is supported in all modern browsers and provides proper UUID v4 generation.",
+      "priority": "medium"
+    },
+    {
+      "title": "Fix event listener memory leak in renderBlockContent notes button",
+      "description": "In script.js:2805-2827, each rendered block's 'add notes' button gets an individual event listener inside a click handler. When displayDailyBlocks() re-renders (happens frequently), old listeners accumulate without cleanup. Migrate to event delegation pattern already used elsewhere in the codebase.",
+      "priority": "medium"
+    },
+    {
+      "title": "Add rel='noopener noreferrer' to About view external links",
+      "description": "In index.html:216-219, three external links use target='_blank' without rel='noopener noreferrer', enabling reverse tabnapping where the opened page can redirect the parent via window.opener. The footer link on line 427 already correctly uses this attribute. Add it to the three source links.",
+      "priority": "low"
+    },
+    {
+      "title": "Add screen reader announcements for date navigation and actions",
+      "description": "When users navigate dates with arrow keys, no ARIA announcement is made. Task completion, block creation success, and settings changes also lack announcements. Use existing aria-live regions (lines 77, 99, 106, 410 in index.html) to announce state changes to screen readers.",
+      "priority": "medium"
+    },
+    {
+      "title": "Add first-time user onboarding experience",
+      "description": "First-time users see an empty schedule with no guidance on how to create blocks (drag-to-select time slots). No tutorial, welcome message, or keyboard shortcut hints exist. Add an onboarding overlay or help modal triggered on first visit (check localStorage flag) explaining core interactions.",
+      "priority": "low"
+    },
+    {
+      "title": "Fix manifest icon purpose and add 192x192 size",
+      "description": "In manifest.json:16, 'purpose: any maskable' combined in one entry is non-conformant per W3C spec - split into separate entries. Also missing 192x192 icon commonly required for Android. Add a 192x192 PNG icon entry to the icons array.",
+      "priority": "low"
+    }
+  ],
+  "summary": "Found 17 issues: 3 security vulnerabilities (XSS, missing CSP, unsafe import), 2 bugs (carry-over data, notification leak), 3 accessibility violations (focus trap, contrast, reduced motion), 4 UX improvements (alerts, onboarding, skip nav, screen reader), 3 code quality issues (memory leak, UUID, event listeners), 2 configuration fixes (SW path, manifest)"
+}

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'none';">
 
   <!-- Primary Meta Tags -->
   <title>Easy Time-Blocking | Free Productivity App</title>
@@ -50,6 +51,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <a href="#daily-view" class="skip-link">Skip to main content</a>
   <header role="banner">
     <div class="header-content">
       <div class="logo-title">
@@ -72,6 +74,9 @@
   </header>
 
   <main>
+  <div id="offline-indicator" class="offline-indicator" role="status" aria-live="polite" style="display: none;">
+    You are offline. Changes are saved locally.
+  </div>
   <!-- Daily View -->
   <div id="daily-view" class="container" role="region" aria-label="Daily schedule">
     <div class="subheader" id="daily-subheader" aria-live="polite"></div>
@@ -213,9 +218,9 @@
         <h2>Sources</h2>
         <p>This content is based on research and insights from:</p>
         <ul>
-          <li><a href="https://www.habitstrong.com/time-blocking-pros-cons" target="_blank">HabitStrong - Pros and Cons of Time Blocking</a></li>
-          <li><a href="https://www.getclockwise.com/blog/benefits-time-blocking" target="_blank">Clockwise - 7 Benefits of Time Blocking</a></li>
-          <li><a href="https://www.todoist.com/productivity-methods/time-blocking" target="_blank">Todoist - Time Blocking Method</a></li>
+          <li><a href="https://www.habitstrong.com/time-blocking-pros-cons" target="_blank" rel="noopener noreferrer">HabitStrong - Pros and Cons of Time Blocking</a></li>
+          <li><a href="https://www.getclockwise.com/blog/benefits-time-blocking" target="_blank" rel="noopener noreferrer">Clockwise - 7 Benefits of Time Blocking</a></li>
+          <li><a href="https://www.todoist.com/productivity-methods/time-blocking" target="_blank" rel="noopener noreferrer">Todoist - Time Blocking Method</a></li>
         </ul>
       </section>
     </div>
@@ -429,6 +434,8 @@
       <span>Built by Jacob Kanfer</span>
     </a>
   </footer>
+
+  <div id="toast-container" class="toast-container" aria-live="assertive" aria-atomic="true"></div>
 
   <script type="module" src="script.js"></script>
 </body>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'time-blocking-v7';
+const CACHE_NAME = 'time-blocking-v9';
 const urlsToCache = [
   './',
   './index.html',
@@ -16,7 +16,8 @@ const urlsToCache = [
   './modules/statistics.js',
   './modules/data.js',
   './modules/archive.js',
-  './modules/print.js'
+  './modules/print.js',
+  './jk-logo.svg'
 ];
 
 // Install event - cache assets

@@ -99,7 +99,7 @@ function _saveBlocksToStorageImmediate(obj){
     localStorage.setItem("timeBlocks", JSON.stringify(obj));
   } catch (e) {
     console.error("Error saving blocks to storage:", e);
-    alert("Unable to save data. Your browser storage may be full or disabled.");
+    showToast("Unable to save data. Your browser storage may be full or disabled.", "error", 5000);
   }
 }
 
@@ -138,7 +138,7 @@ function saveArchivedToStorage(obj){
     localStorage.setItem("archivedBlocks", JSON.stringify(obj));
   } catch (e) {
     console.error("Error saving archived blocks:", e);
-    alert("Unable to save archived data.");
+    showToast("Unable to save archived data.", "error", 5000);
   }
 }
 
@@ -157,7 +157,7 @@ function saveColorPresetsToStorage(arr){
     localStorage.setItem("colorPresets", JSON.stringify(arr));
   } catch (e) {
     console.error("Error saving color presets:", e);
-    alert("Unable to save color preferences.");
+    showToast("Unable to save color preferences.", "error", 5000);
   }
 }
 
@@ -176,7 +176,7 @@ function saveHiddenTimesToStorage(arr){
     localStorage.setItem("hiddenTimes", JSON.stringify(arr));
   } catch (e) {
     console.error("Error saving hidden times:", e);
-    alert("Unable to save time slot preferences.");
+    showToast("Unable to save time slot preferences.", "error", 5000);
   }
 }
 
@@ -276,7 +276,7 @@ function cleanupOldDailyTaskState(){
 // Register service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
       .then((registration) => {
         console.log('ServiceWorker registered:', registration.scope);
       })
@@ -302,6 +302,83 @@ window.addEventListener('appinstalled', () => {
   console.log('PWA was installed');
   deferredPrompt = null;
 });
+
+// Offline/Online detection
+function updateOnlineStatus() {
+  const indicator = document.getElementById('offline-indicator');
+  if (indicator) {
+    indicator.style.display = navigator.onLine ? 'none' : 'block';
+  }
+}
+
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+/***************************************************
+* Screen Reader Announcements
+**************************************************/
+function announceToScreenReader(message) {
+  const subheader = document.getElementById('daily-subheader');
+  if (subheader) {
+    subheader.textContent = message;
+  }
+}
+
+/***************************************************
+* Toast Notifications
+**************************************************/
+function showToast(message, type = 'success', duration = 3000) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s ease';
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+/***************************************************
+* Focus Trap Utility
+**************************************************/
+function trapFocus(element) {
+  const focusableSelectors = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+  function handleKeyDown(e) {
+    if (e.key !== 'Tab') return;
+
+    const focusableElements = Array.from(element.querySelectorAll(focusableSelectors)).filter(el => el.offsetParent !== null);
+    if (focusableElements.length === 0) return;
+
+    const firstFocusable = focusableElements[0];
+    const lastFocusable = focusableElements[focusableElements.length - 1];
+
+    if (e.shiftKey) {
+      if (document.activeElement === firstFocusable) {
+        lastFocusable.focus();
+        e.preventDefault();
+      }
+    } else {
+      if (document.activeElement === lastFocusable) {
+        firstFocusable.focus();
+        e.preventDefault();
+      }
+    }
+  }
+
+  element.addEventListener('keydown', handleKeyDown);
+  return () => element.removeEventListener('keydown', handleKeyDown);
+}
+
+let _overlayFocusTrap = null;
+let _settingsFocusTrap = null;
+let _searchFocusTrap = null;
 
 /***************************************************
 * Main Application
@@ -506,7 +583,7 @@ function initializeNotifications() {
 
 function requestNotificationPermission() {
   if (!("Notification" in window)) {
-    alert("Your browser does not support notifications.");
+    showToast("Your browser does not support notifications.", "warning");
     return Promise.resolve(false);
   }
 
@@ -518,7 +595,7 @@ function requestNotificationPermission() {
   }
 
   if (Notification.permission === "denied") {
-    alert("Notifications are blocked. Please enable them in your browser settings.");
+    showToast("Notifications are blocked. Please enable them in your browser settings.", "warning");
     return Promise.resolve(false);
   }
 
@@ -533,15 +610,22 @@ function requestNotificationPermission() {
   });
 }
 
+let notificationIntervalId = null;
+
 function disableNotifications() {
   notificationsEnabled = false;
   saveNotificationPreference(false);
+  if (notificationIntervalId) {
+    clearInterval(notificationIntervalId);
+    notificationIntervalId = null;
+  }
 }
 
 function startNotificationChecker() {
-  // Check every minute for upcoming blocks
-  setInterval(checkUpcomingBlocks, 60000);
-  // Also check immediately
+  if (notificationIntervalId) {
+    clearInterval(notificationIntervalId);
+  }
+  notificationIntervalId = setInterval(checkUpcomingBlocks, 60000);
   checkUpcomingBlocks();
 }
 
@@ -762,7 +846,7 @@ function setupCategoryManagement() {
     addCategoryBtn.addEventListener("click", () => {
       const name = newCategoryName.value.trim();
       if (!name) {
-        alert("Please enter a category name.");
+        showToast("Please enter a category name.", "error");
         return;
       }
 
@@ -855,7 +939,7 @@ setupCategoryManagement();
 function handleSaveAsTemplate() {
   const title = blockTitleInput.value.trim();
   if (!title) {
-    alert("Please enter a block title first.");
+    showToast("Please enter a block title first.", "error");
     return;
   }
 
@@ -873,7 +957,7 @@ function handleSaveAsTemplate() {
   blockTemplates.push(template);
   saveTemplatesToStorage(blockTemplates);
   populateTemplateSelect();
-  alert(`Template "${templateName}" saved!`);
+  showToast(`Template "${templateName}" saved!`);
 }
 
 function handleDuplicateFromPopup() {
@@ -965,6 +1049,7 @@ function switchToView(viewName) {
   if (statisticsView) statisticsView.classList.remove("active");
   archiveView.classList.remove("active");
   if (aboutView) aboutView.classList.remove("active");
+  if (_settingsFocusTrap) { _settingsFocusTrap(); _settingsFocusTrap = null; }
   settingsOverlay.classList.remove("active");
 
   // Update button states and aria-pressed
@@ -1073,6 +1158,7 @@ if (searchInput) {
       performSearch(query);
     } else {
       if (searchResults) searchResults.innerHTML = "";
+      if (_searchFocusTrap) { _searchFocusTrap(); _searchFocusTrap = null; }
       if (searchOverlay) searchOverlay.classList.remove("active");
     }
   });
@@ -1090,6 +1176,7 @@ if (searchInput) {
 
 if (closeSearchOverlayBtn) {
   closeSearchOverlayBtn.addEventListener("click", () => {
+    if (_searchFocusTrap) { _searchFocusTrap(); _searchFocusTrap = null; }
     if (searchOverlay) searchOverlay.classList.remove("active");
   });
 }
@@ -1121,10 +1208,10 @@ if (importFileInput) {
             const data = parseTxtImport(fileContent);
             importData(data);
           } else {
-            alert("Unsupported file format. Please use .json or .txt files.");
+            showToast("Unsupported file format. Please use .json or .txt files.", "error");
           }
         } catch (error) {
-          alert("Error importing data: " + error.message);
+          showToast("Error importing data. Please check the file format.", "error", 5000);
         }
       };
       reader.readAsText(file);
@@ -1376,7 +1463,7 @@ function handleClearDay() {
   const blocksForDay = getBlocksForDate(dateStr);
 
   if (blocksForDay.length === 0) {
-    alert("No blocks to clear for this day.");
+    showToast("No blocks to clear for this day.", "warning");
     return;
   }
 
@@ -1407,7 +1494,7 @@ function handleClearDay() {
   saveBlocksToStorage(timeBlocks);
   displayDailyBlocks();
   highlightCurrentTime();
-  alert(`Cleared ${blockCount} block(s) for ${dayName}.`);
+  showToast(`Cleared ${blockCount} block(s) for ${dayName}.`);
 }
 
 // Copy all blocks to another date
@@ -1417,7 +1504,7 @@ function handleCopyDay() {
   const blocksForDay = getBlocksForDate(dateStr);
 
   if (blocksForDay.length === 0) {
-    alert("No blocks to copy for this day.");
+    showToast("No blocks to copy for this day.", "warning");
     return;
   }
 
@@ -1431,14 +1518,14 @@ function handleCopyDay() {
 
   // Validate date format
   if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDateStr)) {
-    alert("Invalid date format. Please use YYYY-MM-DD format (e.g., 2024-01-15).");
+    showToast("Invalid date format. Please use YYYY-MM-DD format (e.g., 2024-01-15).", "error");
     return;
   }
 
   // Check if date is valid
   const targetDate = new Date(targetDateStr + "T00:00:00");
   if (isNaN(targetDate.getTime())) {
-    alert("Invalid date. Please enter a valid date.");
+    showToast("Invalid date. Please enter a valid date.", "error");
     return;
   }
 
@@ -1486,9 +1573,9 @@ function handleCopyDay() {
     saveBlocksToStorage(timeBlocks);
     displayDailyBlocks();
     highlightCurrentTime();
-    alert(`Copied ${copiedCount} block(s) to ${targetDateStr}.`);
+    showToast(`Copied ${copiedCount} block(s) to ${targetDateStr}.`);
   } else {
-    alert("No non-recurring blocks were copied. Recurring blocks cannot be copied as regular blocks.");
+    showToast("No non-recurring blocks were copied. Recurring blocks cannot be copied as regular blocks.", "warning", 5000);
   }
 }
 
@@ -1564,7 +1651,8 @@ function setupBlockEventDelegation() {
           }
 
           // Update completion check with proper display blocks
-          const dayBlocks = getCurrentDayBlocks().map(b => applyCarryOverData(b));
+          const todayStrForCheck = formatDate(currentDate);
+          const dayBlocks = getCurrentDayBlocks().map(b => applyCarryOverData(b, todayStrForCheck));
           checkAllTasksCompletion(dayBlocks);
         }
       }
@@ -1735,7 +1823,7 @@ const dailyBlocks = timeBlocks.blocks.filter(b => {
   }
 });
 
-renderBlocksDaily(dailyBlocks);
+renderBlocksDaily(dailyBlocks, todayStr);
 // For task completion check, use display blocks with proper daily task state
 const displayBlocks = dailyBlocks.map(b => applyCarryOverData(b, todayStr));
 checkAllTasksCompletion(displayBlocks);
@@ -1753,17 +1841,32 @@ function checkForEmptyDay() {
       return (b.startTime.split("T")[0] === todayStr);
     }
   });
-  
-  // Remove existing empty message if any
+
   const existing = document.getElementById("empty-day-message");
   if (existing) existing.remove();
+
+  if (dailyBlocks.length === 0) {
+    const dailyBody = document.getElementById("daily-body");
+    if (!dailyBody) return;
+    const msg = document.createElement("tr");
+    msg.id = "empty-day-message";
+    const td = document.createElement("td");
+    td.colSpan = 2;
+    td.className = "empty-day-hint";
+    td.textContent = "Drag across time slots to create your first block, or press ";
+    const kbd = document.createElement("kbd");
+    kbd.textContent = navigator.platform.includes("Mac") ? "Cmd+N" : "Ctrl+N";
+    td.appendChild(kbd);
+    msg.appendChild(td);
+    dailyBody.appendChild(msg);
+  }
 }
 
-function renderBlocksDaily(blocks){
+function renderBlocksDaily(blocks, todayStr){
   const dailyBody = document.getElementById("daily-body");
   blocks.forEach(block => {
     // Apply carry over data for recurring blocks
-    const displayBlock = applyCarryOverData(block);
+    const displayBlock = applyCarryOverData(block, todayStr);
 
     const [startHM, endHM] = parseBlockTimes(displayBlock);
     const startLabel = convert24To12(startHM);
@@ -2361,6 +2464,8 @@ function showBlockPopup(blockData){
   lastFocusedElement = document.activeElement;
 
   overlay.classList.add("active");
+  if (_overlayFocusTrap) _overlayFocusTrap();
+  _overlayFocusTrap = trapFocus(overlay);
   clearPopupFields();
 
   // Populate categories and templates dropdowns
@@ -2547,6 +2652,7 @@ if (blockData) {
 }
 
 function hideOverlay(){
+  if (_overlayFocusTrap) { _overlayFocusTrap(); _overlayFocusTrap = null; }
   overlay.classList.remove("active");
   clearSelectedCells();
   startCell = null;
@@ -2563,7 +2669,7 @@ function hideOverlay(){
 function handleSaveBlock(){
 const title = blockTitleInput.value.trim();
 if(!title){
-  alert("Please enter a block title.");
+  showToast("Please enter a block title.", "error");
   return;
 }
 const notesVal = blockNotesInput.value.trim();
@@ -2591,7 +2697,7 @@ const tasksArr = gatherTasksFromUI();
 let block = null;
 if(editBlockId){
   block = timeBlocks.blocks.find(b => b.id===editBlockId);
-  if(!block){ alert("Error: block not found."); return; }
+  if(!block){ showToast("Error: block not found.", "error"); return; }
   block.title = title;
   block.notes = notesVal;
   block.color = colorVal;
@@ -2616,14 +2722,14 @@ if(editBlockId){
     if (dateVal && startTimeVal && endTimeVal && !recurring) {
       // Validate time range using minutes for reliable comparison
       if (timeToMinutes(startTimeVal) >= timeToMinutes(endTimeVal)) {
-        alert("End time must be after start time. Please enter a valid time range.");
+        showToast("End time must be after start time. Please enter a valid time range.", "error");
         return;
       }
 
       // Validate duration limits
       const durationCheck = validateBlockDuration(startTimeVal, endTimeVal);
       if (!durationCheck.valid) {
-        alert(durationCheck.message);
+        showToast(durationCheck.message, "error");
         return;
       }
 
@@ -2643,7 +2749,7 @@ if(editBlockId){
     } else if (!recurring && (dateVal || startTimeVal || endTimeVal)) {
       // If any time field is filled but not all, show error
       if (dateVal || startTimeVal || endTimeVal) {
-        alert("Please fill in Date, Start Time, and End Time, or leave all blank to keep current times.");
+        showToast("Please fill in Date, Start Time, and End Time, or leave all blank to keep current times.", "error");
         return;
       }
     }
@@ -2667,14 +2773,14 @@ if(editBlockId){
   const startTime = start.split("T")[1].slice(0, 5);
   const endTime = end.split("T")[1].slice(0, 5);
   if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
-    alert("End time must be after start time. Please select a valid time range.");
+    showToast("End time must be after start time. Please select a valid time range.", "error");
     return;
   }
 
   // Validate duration limits
   const durationCheck = validateBlockDuration(startTime, endTime);
   if (!durationCheck.valid) {
-    alert(durationCheck.message);
+    showToast(durationCheck.message, "error");
     return;
   }
 
@@ -2695,6 +2801,7 @@ hideOverlay();
 
 updateDailySubheader();
 displayDailyBlocks();
+announceToScreenReader(`Block "${title}" saved successfully`);
 highlightCurrentTime();
 }
 function handleDeleteBlock(){
@@ -2714,6 +2821,7 @@ function handleDeleteBlock(){
   hideOverlay();
   updateDailySubheader();
   displayDailyBlocks();
+  announceToScreenReader('Block deleted');
   highlightCurrentTime();
 }
 
@@ -2907,11 +3015,14 @@ return tasks;
 **************************************************/
 function showSettings(){
 settingsOverlay.classList.add("active");
+if (_settingsFocusTrap) _settingsFocusTrap();
+_settingsFocusTrap = trapFocus(settingsOverlay);
 buildTimeList();
 buildColorsContainer();
 updateNotificationUI();
 }
 function hideSettings(){
+if (_settingsFocusTrap) { _settingsFocusTrap(); _settingsFocusTrap = null; }
 settingsOverlay.classList.remove("active");
 highlightCurrentTime();
 }
@@ -3227,7 +3338,18 @@ for(let r=0; r<dailyBody.rows.length; r++){
 }
 }
 // Update current time highlight every 5 minutes
-setInterval(highlightCurrentTime, 300000);
+let highlightIntervalId = setInterval(highlightCurrentTime, 300000);
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    clearInterval(highlightIntervalId);
+    highlightIntervalId = null;
+  } else {
+    highlightCurrentTime();
+    if (highlightIntervalId) clearInterval(highlightIntervalId);
+    highlightIntervalId = setInterval(highlightCurrentTime, 300000);
+  }
+});
 
 function generateTimeSlots12(){
 const arr=[];
@@ -3277,10 +3399,38 @@ const map=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 return map[dt.getDay()];
 }
 function generateUUID(){
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-    const r = Math.random()*16|0, v = (c==="x"?r:(r&0x3|0x8));
-    return v.toString(16);
-  });
+  return crypto.randomUUID();
+}
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function sanitizeBlockData(blocks) {
+  if (!Array.isArray(blocks)) return [];
+  const isoDateTimeRe = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+  return blocks.map(block => ({
+    id: typeof block.id === 'string' ? block.id.slice(0, 100) : generateUUID(),
+    title: typeof block.title === 'string' ? block.title.slice(0, 200) : '',
+    notes: typeof block.notes === 'string' ? block.notes.slice(0, 5000) : '',
+    color: typeof block.color === 'string' && /^(#[0-9a-fA-F]{3,8}|rgb\(\d{1,3},\s*\d{1,3},\s*\d{1,3}\))$/.test(block.color) ? block.color : '#4F6D7A',
+    category: typeof block.category === 'string' ? block.category.slice(0, 100) : '',
+    startTime: typeof block.startTime === 'string' && isoDateTimeRe.test(block.startTime) ? block.startTime.slice(0, 25) : '',
+    endTime: typeof block.endTime === 'string' && isoDateTimeRe.test(block.endTime) ? block.endTime.slice(0, 25) : '',
+    tasks: Array.isArray(block.tasks) ? block.tasks.slice(0, 500).map(t => ({
+      text: typeof t.text === 'string' ? t.text.slice(0, 500) : '',
+      completed: typeof t.completed === 'boolean' ? t.completed : false
+    })) : [],
+    recurring: typeof block.recurring === 'boolean' ? block.recurring : false,
+    archived: typeof block.archived === 'boolean' ? block.archived : false,
+    recurrenceDays: Array.isArray(block.recurrenceDays) ? block.recurrenceDays.filter(d => ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].includes(d)) : [],
+    carryOver: typeof block.carryOver === 'boolean' ? block.carryOver : false,
+    preserveTaskState: typeof block.preserveTaskState === 'boolean' ? block.preserveTaskState : false
+  }));
 }
 function randomColor(){
 const r=100+Math.floor(Math.random()*156);
@@ -3444,7 +3594,7 @@ function parseTxtImport(txtContent) {
   } catch (e) {
     // If not JSON, return a basic structure
     // Note: Full TXT parsing would be complex, so we'll prompt user to use JSON for import
-    alert("TXT import is read-only. For full import functionality, please use JSON format.\n\nTo export as JSON, use the 'Export as JSON' button.");
+    showToast("TXT import is read-only. For full import functionality, please use JSON format. To export as JSON, use the 'Export as JSON' button.", "warning", 5000);
     return null;
   }
 }
@@ -3453,12 +3603,43 @@ function importData(data) {
   if (!data) return;
 
   if (confirm("This will replace all your current data. Are you sure?")) {
-    if (data.timeBlocks) timeBlocks = data.timeBlocks;
-    if (data.archivedBlocks) archivedBlocks = data.archivedBlocks;
-    if (data.colorPresets) colorPresets = data.colorPresets;
-    if (data.hiddenTimes) hiddenTimes = data.hiddenTimes;
-    if (data.categories) categories = data.categories;
-    if (data.blockTemplates) blockTemplates = data.blockTemplates;
+    if (data.timeBlocks && data.timeBlocks.blocks) {
+      timeBlocks = { blocks: sanitizeBlockData(data.timeBlocks.blocks) };
+    }
+    if (data.archivedBlocks && data.archivedBlocks.days) {
+      const sanitizedDays = {};
+      for (const [dateStr, blocks] of Object.entries(data.archivedBlocks.days)) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          sanitizedDays[dateStr] = sanitizeBlockData(blocks);
+        }
+      }
+      archivedBlocks = { days: sanitizedDays };
+    }
+    if (Array.isArray(data.colorPresets)) {
+      colorPresets = data.colorPresets.filter(c => typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c)).slice(0, 50);
+    }
+    if (Array.isArray(data.hiddenTimes)) {
+      hiddenTimes = data.hiddenTimes.filter(t => typeof t === 'string' && t.length < 20).slice(0, 100);
+    }
+    if (Array.isArray(data.categories)) {
+      categories = data.categories.filter(c => c && typeof c === 'object' && typeof c.id === 'string' && typeof c.name === 'string').map(c => ({
+        id: c.id.slice(0, 100),
+        name: c.name.slice(0, 100),
+        color: typeof c.color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c.color) ? c.color : '#4F6D7A'
+      })).slice(0, 50);
+    }
+    if (Array.isArray(data.blockTemplates)) {
+      blockTemplates = data.blockTemplates.filter(t => t && typeof t === 'object' && typeof t.title === 'string').map(t => ({
+        title: t.title.slice(0, 200),
+        notes: typeof t.notes === 'string' ? t.notes.slice(0, 5000) : '',
+        category: typeof t.category === 'string' ? t.category.slice(0, 100) : '',
+        color: typeof t.color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(t.color) ? t.color : '#4F6D7A',
+        tasks: Array.isArray(t.tasks) ? t.tasks.map(tk => ({
+          text: typeof tk.text === 'string' ? tk.text.slice(0, 500) : '',
+          completed: typeof tk.completed === 'boolean' ? tk.completed : false
+        })).slice(0, 100) : []
+      })).slice(0, 50);
+    }
 
     saveBlocksToStorage(timeBlocks);
     saveArchivedToStorage(archivedBlocks);
@@ -3473,7 +3654,7 @@ function importData(data) {
     populateCategorySelect();
     populateTemplateSelect();
     displayDailyBlocks();
-    alert("Data imported successfully!");
+    showToast("Data imported successfully!");
   }
 }
 
@@ -3510,6 +3691,8 @@ function displaySearchResults(results, query) {
   if (results.length === 0) {
     searchResults.innerHTML = "<p>No results found.</p>";
     if (searchOverlay) searchOverlay.classList.add("active");
+    if (_searchFocusTrap) _searchFocusTrap();
+    _searchFocusTrap = trapFocus(searchOverlay);
     return;
   }
   
@@ -3562,6 +3745,7 @@ function displaySearchResults(results, query) {
         displayDailyBlocks();
         highlightCurrentTime();
       }
+      if (_searchFocusTrap) { _searchFocusTrap(); _searchFocusTrap = null; }
       if (searchOverlay) searchOverlay.classList.remove("active");
       if (searchContainer) searchContainer.style.display = "none";
       if (searchInput) searchInput.value = "";
@@ -3571,6 +3755,8 @@ function displaySearchResults(results, query) {
   });
   
   if (searchOverlay) searchOverlay.classList.add("active");
+  if (_searchFocusTrap) _searchFocusTrap();
+  _searchFocusTrap = trapFocus(searchOverlay);
 }
 
 /***************************************************
@@ -3630,8 +3816,9 @@ function showPrintView() {
   dailyView.classList.remove("active");
   if (statisticsView) statisticsView.classList.remove("active");
   archiveView.classList.remove("active");
+  if (_settingsFocusTrap) { _settingsFocusTrap(); _settingsFocusTrap = null; }
   settingsOverlay.classList.remove("active");
-  
+
   // Show print view
   if (printView) {
     printView.classList.add("active");
@@ -3686,7 +3873,7 @@ function buildPrintView() {
       const dayName = getWeekdayName(new Date(dateStr + "T00:00:00"));
       
       html += `<div class="print-day-section">`;
-      html += `<h2>${dayName}, ${formattedDate}</h2>`;
+      html += `<h2>${escapeHtml(dayName)}, ${escapeHtml(formattedDate)}</h2>`;
       
       const dayBlocks = blocksByDate[dateStr].sort((a, b) => {
         if (!a.startTime) return 1;
@@ -3698,11 +3885,11 @@ function buildPrintView() {
         html += `<div class="print-block">`;
         html += `<div class="print-block-header">`;
         if (block.startTime) {
-          const time = block.startTime.split("T")[1].slice(0, 5);
-          const endTime = block.endTime ? block.endTime.split("T")[1].slice(0, 5) : "";
+          const time = escapeHtml(block.startTime.split("T")[1].slice(0, 5));
+          const endTime = block.endTime ? escapeHtml(block.endTime.split("T")[1].slice(0, 5)) : "";
           html += `<span class="print-time">${time}${endTime ? ` - ${endTime}` : ""}</span>`;
         }
-        html += `<span class="print-title">${block.title || "Untitled"}</span>`;
+        html += `<span class="print-title">${escapeHtml(block.title) || "Untitled"}</span>`;
         if (block.recurring) {
           html += `<span class="print-recurring">(Recurring)</span>`;
         }
@@ -3712,13 +3899,13 @@ function buildPrintView() {
           html += `<ul class="print-tasks">`;
           block.tasks.forEach(task => {
             const checked = task.completed ? "✓" : "○";
-            html += `<li>${checked} ${task.text}</li>`;
+            html += `<li>${checked} ${escapeHtml(task.text)}</li>`;
           });
           html += `</ul>`;
         }
         
         if (block.notes) {
-          html += `<p class="print-notes">${block.notes}</p>`;
+          html += `<p class="print-notes">${escapeHtml(block.notes)}</p>`;
         }
         
         html += `</div>`;

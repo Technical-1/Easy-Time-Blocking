@@ -7,6 +7,7 @@ import { formatDate, getWeekdayName, timeToMinutes, convertTo12Hour } from './ut
 
 let notificationsEnabled = loadNotificationPreference();
 let notifiedBlocks = new Set();
+let notificationIntervalId = null;
 let timeBlocksRef = null;
 
 // Set reference to timeBlocks (called from main)
@@ -27,7 +28,7 @@ export function initializeNotifications() {
 
 export function requestNotificationPermission() {
   if (!("Notification" in window)) {
-    alert("Your browser does not support notifications.");
+    console.warn("Your browser does not support notifications.");
     return Promise.resolve(false);
   }
 
@@ -39,7 +40,7 @@ export function requestNotificationPermission() {
   }
 
   if (Notification.permission === "denied") {
-    alert("Notifications are blocked. Please enable them in your browser settings.");
+    console.warn("Notifications are blocked. Please enable them in your browser settings.");
     return Promise.resolve(false);
   }
 
@@ -57,6 +58,10 @@ export function requestNotificationPermission() {
 export function disableNotifications() {
   notificationsEnabled = false;
   saveNotificationPreference(false);
+  if (notificationIntervalId) {
+    clearInterval(notificationIntervalId);
+    notificationIntervalId = null;
+  }
 }
 
 export function isNotificationsEnabled() {
@@ -64,7 +69,10 @@ export function isNotificationsEnabled() {
 }
 
 function startNotificationChecker() {
-  setInterval(checkUpcomingBlocks, 60000);
+  if (notificationIntervalId) {
+    clearInterval(notificationIntervalId);
+  }
+  notificationIntervalId = setInterval(checkUpcomingBlocks, 60000);
   checkUpcomingBlocks();
 }
 

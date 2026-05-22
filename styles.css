@@ -6,15 +6,15 @@
   --bg-tertiary: #f9f9f9;
   --text-primary: #333333;
   --text-secondary: #666666;
-  --text-muted: #999999;
+  --text-muted: #767676;
   --border-color: #cccccc;
   --border-light: #dddddd;
   --header-bg: linear-gradient(135deg, #4F6D7A 0%, #3a525c 100%);
   --header-text: #ffffff;
   --accent-color: #4F6D7A;
   --accent-dark: #3a525c;
-  --success-color: #5cb85c;
-  --success-hover: #4cae4c;
+  --success-color: #3d8b3d;
+  --success-hover: #347a34;
   --danger-color: #d9534f;
   --warning-color: #f0ad4e;
   --link-color: #0275d8;
@@ -34,15 +34,15 @@
   --bg-tertiary: #3d3d3d;
   --text-primary: #e0e0e0;
   --text-secondary: #b0b0b0;
-  --text-muted: #808080;
+  --text-muted: #8a8a8a;
   --border-color: #444444;
   --border-light: #555555;
   --header-bg: linear-gradient(135deg, #2d4a57 0%, #1e3540 100%);
   --header-text: #ffffff;
   --accent-color: #5a8a9a;
   --accent-dark: #4a7a8a;
-  --success-color: #4cae4c;
-  --success-hover: #3d9e3d;
+  --success-color: #5cb85c;
+  --success-hover: #4cae4c;
   --danger-color: #c9433f;
   --warning-color: #e09d3e;
   --link-color: #5cacee;
@@ -63,15 +63,15 @@
     --bg-tertiary: #3d3d3d;
     --text-primary: #e0e0e0;
     --text-secondary: #b0b0b0;
-    --text-muted: #808080;
+    --text-muted: #8a8a8a;
     --border-color: #444444;
     --border-light: #555555;
     --header-bg: linear-gradient(135deg, #2d4a57 0%, #1e3540 100%);
     --header-text: #ffffff;
     --accent-color: #5a8a9a;
     --accent-dark: #4a7a8a;
-    --success-color: #4cae4c;
-    --success-hover: #3d9e3d;
+    --success-color: #5cb85c;
+    --success-hover: #4cae4c;
     --danger-color: #c9433f;
     --warning-color: #e09d3e;
     --link-color: #5cacee;
@@ -116,6 +116,24 @@ body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--accent-color);
+  color: #fff;
+  padding: 8px 16px;
+  z-index: 200;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: top 0.2s;
+}
+.skip-link:focus {
+  top: 0;
+}
+
 header {
   background: var(--header-bg);
   padding: 1rem 1.5rem;
@@ -1495,6 +1513,32 @@ body, table, td {
   margin-top: 0.625rem; /* 10px → 0.625rem */
 }
 
+/* Offline indicator */
+.offline-indicator {
+  background-color: var(--warning-color);
+  color: #333;
+  text-align: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Empty day hint */
+.empty-day-hint {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem 1rem;
+  font-size: 0.95rem;
+}
+.empty-day-hint kbd {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
 /* Responsive: Mobile adjustments */
 @media (max-width: 37.5rem) { /* 600px → 37.5rem */
   /* Use smaller font sizes */
@@ -1691,6 +1735,49 @@ body, table, td {
   width: 24px;
   height: 24px;
   border-radius: 4px;
+}
+
+/* Toast notifications */
+.toast-container {
+  position: fixed;
+  bottom: 2rem;
+  right: 1rem;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+.toast {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 4px 12px var(--shadow-dark);
+  font-size: 0.9rem;
+  max-width: 350px;
+  pointer-events: auto;
+  animation: slideUp 0.2s ease-out;
+}
+.toast-success {
+  border-left: 4px solid var(--success-color);
+}
+.toast-error {
+  border-left: 4px solid var(--danger-color);
+}
+.toast-warning {
+  border-left: 4px solid var(--warning-color);
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media print {
