@@ -370,6 +370,7 @@ const timeSlots = generateTimeSlots12();
 
 // On load: auto-archive older blocks
 autoArchiveOldBlocks();
+reconcileHiddenTimes();
 
 // Build daily
 buildDailyTable();
@@ -414,6 +415,7 @@ function applyExternalStorageChange(key) {
   switch (key) {
     case "timeBlocks":
       timeBlocks = loadBlocksFromStorage();
+      if (reconcileHiddenTimes()) buildDailyTable();
       if (dailyView.classList.contains("active")) displayDailyBlocks();
       break;
     case "archivedBlocks":
@@ -3009,6 +3011,17 @@ timeBlocks.blocks.forEach(b => {
 });
 return set;
 }
+
+// Drop hiddenTimes that overlap any block's slots, so blocks can't be invisible.
+function reconcileHiddenTimes() {
+  if (!hiddenTimes.length) return false;
+  const usedLabels = findUsedTimeLabels();
+  const filtered = hiddenTimes.filter(label => !usedLabels.has(label));
+  if (filtered.length === hiddenTimes.length) return false;
+  hiddenTimes = filtered;
+  saveHiddenTimesToStorage(hiddenTimes);
+  return true;
+}
 function buildColorsContainer(){
 if (!colorsContainer) return;
 colorsContainer.innerHTML = "";
@@ -3662,6 +3675,7 @@ function importData(data) {
     saveHiddenTimesToStorage(hiddenTimes);
     saveCategoriesToStorage(categories);
     saveTemplatesToStorage(blockTemplates);
+    reconcileHiddenTimes();
 
     buildColorsContainer();
     buildCategoriesContainer();
