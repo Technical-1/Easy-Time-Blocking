@@ -209,6 +209,26 @@ function assignTaskIdsToAllCollections() {
   if (templatesChanged) saveTemplatesToStorage(blockTemplates);
 }
 
+// Stamp pre-F14 recurring archive entries with their actual dayKey date.
+function migrateArchiveStartTimes() {
+  if (!archivedBlocks || !archivedBlocks.days) return;
+  let changed = false;
+  for (const dayKey in archivedBlocks.days) {
+    archivedBlocks.days[dayKey].forEach(entry => {
+      if (!entry.recurring || !entry.startTime || !entry.endTime) return;
+      const startDate = entry.startTime.split("T")[0];
+      if (startDate === dayKey) return;
+      const startTime = entry.startTime.split("T")[1];
+      const endTime = entry.endTime.split("T")[1];
+      if (!startTime || !endTime) return;
+      entry.startTime = `${dayKey}T${startTime}`;
+      entry.endTime = `${dayKey}T${endTime}`;
+      changed = true;
+    });
+  }
+  if (changed) saveArchivedToStorage(archivedBlocks);
+}
+
 // Idempotent: text-keys → id-keys via task-text lookup; orphan keys dropped.
 function migrateDailyState() {
   const state = loadDailyTaskStateFromStorage();
@@ -447,11 +467,13 @@ let endCell = null;
 // 12-hour half-hour increments
 const timeSlots = generateTimeSlots12();
 
-// On load: auto-archive older blocks
+// F24: prune daily state first so subsequent migrations process only the 30-day window.
+cleanupOldDailyTaskState();
 autoArchiveOldBlocks();
 reconcileHiddenTimes();
 assignTaskIdsToAllCollections();
 migrateDailyState();
+migrateArchiveStartTimes();
 
 // Build daily
 buildDailyTable();
@@ -469,9 +491,6 @@ btnDaily.classList.add("active");
 
 // Initialize theme
 initializeTheme();
-
-// Clean up old daily task state (keep last 30 days)
-cleanupOldDailyTaskState();
 
 // Initialize categories and templates
 populateCategorySelect();
@@ -2124,7 +2143,9 @@ function archiveRecurringBlocksForPastDays(today) {
         completed: taskState[t.id] ?? false
       }));
 
-      // Archive this recurring block instance
+      // Stamp the archive entry with dayKey's date, not the template's creation date.
+      const timeOnly = block.startTime.split("T")[1];
+      const endTimeOnly = block.endTime.split("T")[1];
       if (!archivedBlocks.days[dateStr]) archivedBlocks.days[dateStr] = [];
       archivedBlocks.days[dateStr].push({
         title: block.title,
@@ -2133,8 +2154,8 @@ function archiveRecurringBlocksForPastDays(today) {
         tasks: archivedTasks,
         recurring: true,
         recurringBlockId: block.id,
-        startTime: block.startTime,
-        endTime: block.endTime
+        startTime: `${dateStr}T${timeOnly}`,
+        endTime: `${dateStr}T${endTimeOnly}`
       });
     });
   }
@@ -3774,6 +3795,7 @@ function importData(data) {
     reconcileHiddenTimes();
     assignTaskIdsToAllCollections();
     migrateDailyState();
+    migrateArchiveStartTimes();
 
     buildColorsContainer();
     buildCategoriesContainer();
@@ -3789,24 +3811,30 @@ function importData(data) {
 **************************************************/
 function performSearch(query) {
   const results = [];
-  const allBlocks = [...timeBlocks.blocks, ...Object.values(archivedBlocks.days || {}).flat()];
-  
-  allBlocks.forEach(block => {
+
+  const matchInto = (block, dayKey) => {
     if (block.title && block.title.toLowerCase().includes(query)) {
-      results.push({ block, type: "title" });
+      results.push({ block, dayKey, type: "title" });
     }
     if (block.notes && block.notes.toLowerCase().includes(query)) {
-      results.push({ block, type: "notes" });
+      results.push({ block, dayKey, type: "notes" });
     }
     if (block.tasks) {
       block.tasks.forEach(task => {
         if (task.text && task.text.toLowerCase().includes(query)) {
-          results.push({ block, type: "task", taskText: task.text });
+          results.push({ block, dayKey, type: "task", taskText: task.text });
         }
       });
     }
-  });
-  
+  };
+
+  timeBlocks.blocks.forEach(block => matchInto(block, null));
+  if (archivedBlocks && archivedBlocks.days) {
+    for (const dayKey in archivedBlocks.days) {
+      archivedBlocks.days[dayKey].forEach(block => matchInto(block, dayKey));
+    }
+  }
+
   displaySearchResults(results, query);
 }
 
@@ -3820,35 +3848,36 @@ function displaySearchResults(results, query) {
     return;
   }
   
-  // Remove duplicates (same block)
+  // Dedup by (dayKey, blockId, startTime) — dayKey disambiguates archived occurrences.
   const uniqueResults = [];
-  const seenIds = new Set();
+  const seenKeys = new Set();
   results.forEach(r => {
-    if (!seenIds.has(r.block.id || r.block.startTime)) {
-      seenIds.add(r.block.id || r.block.startTime);
+    const key = `${r.dayKey || ""}|${r.block.id || ""}|${r.block.startTime || ""}`;
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
       uniqueResults.push(r);
     }
   });
-  
+
   uniqueResults.forEach(result => {
     const item = document.createElement("div");
     item.classList.add("search-result-item");
-    
+
     const title = document.createElement("div");
     title.style.fontWeight = "bold";
     title.textContent = result.block.title || "Untitled";
     item.appendChild(title);
-    
+
     const info = document.createElement("div");
     info.style.fontSize = "0.9rem";
     info.style.color = "#666";
-    if (result.block.startTime) {
-      const date = result.block.startTime.split("T")[0];
-      const time = result.block.startTime.split("T")[1].slice(0, 5);
-      info.textContent = `${date} at ${time}`;
+    const dateStr = result.dayKey || (result.block.startTime ? result.block.startTime.split("T")[0] : "");
+    const timeStr = result.block.startTime ? result.block.startTime.split("T")[1].slice(0, 5) : "";
+    if (dateStr) {
+      info.textContent = timeStr ? `${dateStr} at ${timeStr}` : dateStr;
     }
     item.appendChild(info);
-    
+
     if (result.type === "notes" && result.block.notes) {
       const notesPreview = document.createElement("div");
       notesPreview.style.fontSize = "0.85rem";
@@ -3857,11 +3886,12 @@ function displaySearchResults(results, query) {
       notesPreview.textContent = result.block.notes.substring(0, 100) + (result.block.notes.length > 100 ? "..." : "");
       item.appendChild(notesPreview);
     }
-    
+
     item.addEventListener("click", () => {
-      if (result.block.startTime) {
-        const blockDate = new Date(result.block.startTime);
-        currentDate = blockDate;
+      // Prefer dayKey so archived occurrences navigate to their actual day.
+      const navTarget = result.dayKey || (result.block.startTime ? result.block.startTime.split("T")[0] : null);
+      if (navTarget) {
+        currentDate = new Date(navTarget + "T12:00:00");
         dailyView.classList.add("active");
         statisticsView.classList.remove("active");
         archiveView.classList.remove("active");
@@ -3873,7 +3903,7 @@ function displaySearchResults(results, query) {
       if (searchContainer) searchContainer.style.display = "none";
       if (searchInput) searchInput.value = "";
     });
-    
+
     searchResults.appendChild(item);
   });
   
