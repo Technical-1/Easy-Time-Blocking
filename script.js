@@ -1465,7 +1465,7 @@ function handleCopyDay() {
     const endTime = block.endTime.split("T")[1];
 
     const newBlock = {
-      id: generateUUID(),
+      id: crypto.randomUUID(),
       title: block.title,
       notes: block.notes || "",
       color: block.color || colorPresets[0],
@@ -2651,7 +2651,7 @@ if(editBlockId){
   }
 } else {
   block = {
-    id: generateUUID(),
+    id: crypto.randomUUID(),
     title,
     notes: notesVal,
     color: colorVal,
@@ -2719,7 +2719,7 @@ function handleDeleteBlock(){
 
 function duplicateBlock(blockToDuplicate) {
   const newBlock = {
-    id: generateUUID(),
+    id: crypto.randomUUID(),
     title: blockToDuplicate.title + " (Copy)",
     notes: blockToDuplicate.notes || "",
     color: blockToDuplicate.color || colorPresets[0],
@@ -2985,7 +2985,6 @@ colorPresets.forEach((c, index) => {
   inp.addEventListener("change", () => {
     colorPresets[index] = inp.value;
     saveColorPresetsToStorage(colorPresets);
-    populateColorCheckboxes();
     displayDailyBlocks();
   });
 
@@ -3005,47 +3004,6 @@ colorPresets.forEach((c, index) => {
   colorsContainer.appendChild(rowDiv);
 });
 }
-function populateColorCheckboxes(){
-// Legacy function - color checkboxes replaced with color picker
-const container = document.getElementById("block-color-options");
-if (!container) return;
-// We'll let user pick only one color at a time, so we do checkboxes but enforce unchecking
-colorPresets.forEach((c, index) => {
-  const label = document.createElement("label");
-  label.style.display = "flex";
-  label.style.alignItems = "center";
-  label.style.cursor = "pointer";
-  label.style.gap = "6px";
-
-  const cb = document.createElement("input");
-  cb.type = "checkbox";
-  cb.value = c;
-  cb.style.accentColor = c;
-
-  // when one is checked => uncheck others
-  cb.addEventListener("change", () => {
-    if(cb.checked){
-      // uncheck all other color checkboxes
-      container.querySelectorAll('input[type="checkbox"]').forEach(other => {
-        if(other !== cb) other.checked = false;
-      });
-    }
-  });
-
-  // show color square or text
-  const span = document.createElement("span");
-  span.textContent = c;
-  span.style.backgroundColor = c;
-  span.style.padding = "2px 6px";
-  span.style.borderRadius = "4px";
-  span.style.color = "#000";
-
-  label.appendChild(cb);
-  label.appendChild(span);
-  container.appendChild(label);
-});
-}
-
 /***************************************************
 *  Time / Utility
 **************************************************/
@@ -3275,12 +3233,6 @@ return `${y}-${m}-${d}`;
 function getWeekdayName(dt){
 const map=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 return map[dt.getDay()];
-}
-function generateUUID(){
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-    const r = Math.random()*16|0, v = (c==="x"?r:(r&0x3|0x8));
-    return v.toString(16);
-  });
 }
 function randomColor(){
 const r=100+Math.floor(Math.random()*156);
@@ -3660,7 +3612,6 @@ function importData(data) {
     saveCategoriesToStorage(categories);
     saveTemplatesToStorage(blockTemplates);
 
-    populateColorCheckboxes();
     buildColorsContainer();
     buildCategoriesContainer();
     populateCategorySelect();

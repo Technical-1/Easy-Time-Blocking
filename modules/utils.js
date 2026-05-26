@@ -2,13 +2,10 @@
  * Utils Module - Common utility functions
  */
 
-// Generate UUID v4
+// Generate UUID v4. Thin wrapper around the platform API so this module's
+// public surface remains stable; see CODE_AUDIT_TRACKING.md#f12.
 export function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  return crypto.randomUUID();
 }
 
 // Format date as YYYY-MM-DD
