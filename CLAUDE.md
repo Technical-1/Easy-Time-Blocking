@@ -19,6 +19,24 @@ python -m http.server 8000
 npx serve
 ```
 
+## Git hooks
+
+This repo ships a pre-commit hook in `.githooks/pre-commit` that prevents committing changes to service-worker-cached assets (`index.html`, `styles.css`, `script.js`, `icon.svg`, `manifest.json`, `modules/*.js`) without also bumping `CACHE_NAME` in `sw.js`. Without the bump, users keep seeing the old code until they manually clear their cache.
+
+**One-time setup after cloning:**
+
+```bash
+git config core.hooksPath .githooks
+```
+
+That tells git to look in `.githooks/` instead of `.git/hooks/`, so the tracked hook fires on every commit.
+
+**To bump the cache:** open `sw.js`, increment the version suffix in `CACHE_NAME` (e.g. `'time-blocking-v8'` → `'time-blocking-v9'`), stage `sw.js`, and re-commit.
+
+**Emergency bypass:** `git commit --no-verify`. Only use this for content-only commits (e.g. README edits batched with no app code), and double-check that you really don't need the bump.
+
+See `CODE_AUDIT_TRACKING.md#f11` for the full rationale.
+
 ## Architecture
 
 ### File Structure
@@ -93,9 +111,10 @@ Blocks can recur on specific weekdays. Features:
 
 ### PWA Support
 
-- Service worker (`sw.js`) caches static assets for offline use
-- Web app manifest (`manifest.json`) for installability
+- Service worker (`sw.js`) caches static assets for offline use, keyed on `CACHE_NAME` (currently `time-blocking-v8`). Bump the version on every deploy that touches cached assets — the pre-commit hook in `.githooks/pre-commit` enforces this automatically (see "Git hooks" above).
+- Web app manifest (`manifest.json`) for installability. Orientation is `any` so the schedule renders in both portrait and landscape on installed PWAs.
 - Install prompt handling via `beforeinstallprompt` event
+- Service worker is registered via a relative path (`./sw.js`) so it works under both root and subpath deployments (e.g. GitHub Pages at `/Easy-Time-Blocking/`).
 
 ### Theming
 

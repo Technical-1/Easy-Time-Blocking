@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Pre-commit hook: ensure sw.js is updated when service-worker-cached assets change.
+#
+# Why: The PWA uses stale-while-revalidate caching keyed on CACHE_NAME in sw.js.
+# If you edit a cached file (script.js, styles.css, etc.) but forget to bump
+# CACHE_NAME in sw.js, users keep seeing the old code forever. This hook fails
+# the commit before that mistake reaches main.
+#
+# See CODE_AUDIT_TRACKING.md#f11 for the full rationale.
+
+set -euo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# Files cached by the service worker — must match the urlsToCache list in sw.js.
+cached_regex='^(index\.html|styles\.css|script\.js|icon\.svg|manifest\.json|modules/.+\.js)$'
+
+cached_changed=$(printf '%s\n' "$staged" | grep -E "$cached_regex" || true)
+
+# No cached assets changed → no SW bump required.
+if [ -z "$cached_changed" ]; then
+  exit 0
+fi
+
+# sw.js is being changed alongside → trust the dev bumped CACHE_NAME.
+if printf '%s\n' "$staged" | grep -qx 'sw.js'; then
+  exit 0
+fi
+
+cat >&2 <<EOF
+
+ERROR: pre-commit hook (CODE_AUDIT_TRACKING.md#f11)
+
+You're committing changes to service-worker-cached assets:
+$(printf '  - %s\n' $cached_changed)
+
+But sw.js is NOT staged. Users on the current service worker will keep
+seeing the old version of these files until they manually clear their cache.
+
+Fix:
+  1. Open sw.js
+  2. Increment CACHE_NAME (e.g. 'time-blocking-v8' -> 'time-blocking-v9')
+  3. git add sw.js
+  4. Re-run your commit
+
+To bypass (only if you really know why — e.g. README-only change being
+batched into a content-only commit you already verified):
+  git commit --no-verify
+
+EOF
+exit 1
