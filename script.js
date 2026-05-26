@@ -570,6 +570,26 @@ document.addEventListener("focusout", () => {
 });
 
 /***************************************************
+* Modal Focus Containment (F21 / PH#483 / Bucket T)
+**************************************************/
+// `inert` on background sections keeps Tab + AT inside the active overlay.
+function syncBackgroundInert() {
+  const anyActive =
+    (overlay && overlay.classList.contains("active")) ||
+    (settingsOverlay && settingsOverlay.classList.contains("active")) ||
+    (searchOverlay && searchOverlay.classList.contains("active"));
+  document.querySelectorAll("header, main, footer").forEach(el => {
+    if (anyActive) el.setAttribute("inert", "");
+    else el.removeAttribute("inert");
+  });
+}
+
+const inertObserver = new MutationObserver(syncBackgroundInert);
+[overlay, settingsOverlay, searchOverlay].forEach(el => {
+  if (el) inertObserver.observe(el, { attributes: true, attributeFilter: ["class"] });
+});
+
+/***************************************************
 * Browser Notifications
 **************************************************/
 function loadNotificationPreference() {
@@ -1421,10 +1441,13 @@ document.addEventListener("keydown", (e) => {
   );
 
   if (e.key === "Escape" || e.key === "Esc") {
-    if (overlay.classList.contains("active")) {
-      hideOverlay();
-    } else if (settingsOverlay.classList.contains("active")) {
+    // Close the topmost-z overlay first.
+    if (settingsOverlay.classList.contains("active")) {
       hideSettings();
+    } else if (searchOverlay && searchOverlay.classList.contains("active")) {
+      searchOverlay.classList.remove("active");
+    } else if (overlay.classList.contains("active")) {
+      hideOverlay();
     } else if (searchContainer && searchContainer.style.display === "flex") {
       searchContainer.style.display = "none";
     } else if (printView && printView.classList.contains("active")) {
@@ -3070,6 +3093,8 @@ return tasks;
 * Settings
 **************************************************/
 function showSettings(){
+// Close block-edit popup first so settings doesn't orphan a hidden modal underneath.
+if (overlay.classList.contains("active")) hideOverlay();
 settingsOverlay.classList.add("active");
 buildTimeList();
 buildColorsContainer();
