@@ -8,6 +8,7 @@ import { formatDate, getWeekdayName, timeToMinutes, convertTo12Hour } from './ut
 let notificationsEnabled = loadNotificationPreference();
 let notifiedBlocks = new Set();
 let timeBlocksRef = null;
+let notificationIntervalId = null; // Cleared on disable/re-enable. See CODE_AUDIT_TRACKING.md#f8.
 
 // Set reference to timeBlocks (called from main)
 export function setTimeBlocksRef(ref) {
@@ -57,6 +58,10 @@ export function requestNotificationPermission() {
 export function disableNotifications() {
   notificationsEnabled = false;
   saveNotificationPreference(false);
+  if (notificationIntervalId !== null) {
+    clearInterval(notificationIntervalId);
+    notificationIntervalId = null;
+  }
 }
 
 export function isNotificationsEnabled() {
@@ -64,7 +69,11 @@ export function isNotificationsEnabled() {
 }
 
 function startNotificationChecker() {
-  setInterval(checkUpcomingBlocks, 60000);
+  // Tear down any prior interval before starting a new one — see #f8.
+  if (notificationIntervalId !== null) {
+    clearInterval(notificationIntervalId);
+  }
+  notificationIntervalId = setInterval(checkUpcomingBlocks, 60000);
   checkUpcomingBlocks();
 }
 
@@ -93,7 +102,8 @@ function checkUpcomingBlocks() {
     const notifyMinutes = blockStartMinutes - 5;
     const notificationKey = `${currentDateStr}-${block.id}`;
 
-    if (currentMinutes >= notifyMinutes && currentMinutes < notifyMinutes + 1) {
+    // Window is the entire pre-block period — see #f10.
+    if (currentMinutes >= notifyMinutes && currentMinutes < blockStartMinutes) {
       if (!notifiedBlocks.has(notificationKey)) {
         notifiedBlocks.add(notificationKey);
         showBlockNotification(block);

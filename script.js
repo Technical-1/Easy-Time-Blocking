@@ -490,6 +490,7 @@ function saveNotificationPreference(enabled) {
 
 let notificationsEnabled = loadNotificationPreference();
 let notifiedBlocks = new Set(); // Track which blocks we've already notified about
+let notificationIntervalId = null; // Single canonical interval; cleared on disable/re-enable. See CODE_AUDIT_TRACKING.md#f8.
 
 function initializeNotifications() {
   // Check for notification support
@@ -536,11 +537,20 @@ function requestNotificationPermission() {
 function disableNotifications() {
   notificationsEnabled = false;
   saveNotificationPreference(false);
+  if (notificationIntervalId !== null) {
+    clearInterval(notificationIntervalId);
+    notificationIntervalId = null;
+  }
 }
 
 function startNotificationChecker() {
-  // Check every minute for upcoming blocks
-  setInterval(checkUpcomingBlocks, 60000);
+  // Always tear down any prior interval before starting a new one. Without this,
+  // toggling notifications off/on N times accumulates N parallel intervals — see
+  // CODE_AUDIT_TRACKING.md#f8.
+  if (notificationIntervalId !== null) {
+    clearInterval(notificationIntervalId);
+  }
+  notificationIntervalId = setInterval(checkUpcomingBlocks, 60000);
   // Also check immediately
   checkUpcomingBlocks();
 }
@@ -570,13 +580,14 @@ function checkUpcomingBlocks() {
     const startTime = block.startTime.split("T")[1].slice(0, 5);
     const blockStartMinutes = timeToMinutes(startTime);
 
-    // Notify 5 minutes before the block starts
+    // Notify 5 minutes before the block starts. Window is the entire pre-block
+    // period — a backgrounded-tab tick that's late by 2+ minutes still catches
+    // up rather than silently skipping. The notifiedBlocks Set keeps it from
+    // firing twice. See CODE_AUDIT_TRACKING.md#f10.
     const notifyMinutes = blockStartMinutes - 5;
     const notificationKey = `${currentDateStr}-${block.id}`;
 
-    // Check if it's time to notify (within the current minute)
-    if (currentMinutes >= notifyMinutes && currentMinutes < notifyMinutes + 1) {
-      // Check if we haven't already notified for this block today
+    if (currentMinutes >= notifyMinutes && currentMinutes < blockStartMinutes) {
       if (!notifiedBlocks.has(notificationKey)) {
         notifiedBlocks.add(notificationKey);
         showBlockNotification(block);
