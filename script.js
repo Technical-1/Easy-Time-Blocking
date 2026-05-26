@@ -3462,8 +3462,188 @@ function parseTxtImport(txtContent) {
   }
 }
 
+// Validate the shape of imported JSON before replacing app state. Returns
+// { valid: true, data } on success, or { valid: false, error } with a
+// human-readable description of the first failing field. See
+// CODE_AUDIT_TRACKING.md#f9.
+function validateImportData(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return { valid: false, error: "File must contain a JSON object at the top level." };
+  }
+
+  // timeBlocks is required.
+  if (!data.timeBlocks || typeof data.timeBlocks !== "object") {
+    return { valid: false, error: '"timeBlocks" field is required and must be an object.' };
+  }
+  if (!Array.isArray(data.timeBlocks.blocks)) {
+    return { valid: false, error: '"timeBlocks.blocks" must be an array.' };
+  }
+
+  for (let i = 0; i < data.timeBlocks.blocks.length; i++) {
+    const err = _validateBlock(data.timeBlocks.blocks[i], `Block ${i}`);
+    if (err) return { valid: false, error: err };
+  }
+
+  // archivedBlocks optional.
+  if (data.archivedBlocks !== undefined) {
+    if (typeof data.archivedBlocks !== "object" || data.archivedBlocks === null) {
+      return { valid: false, error: '"archivedBlocks" must be an object.' };
+    }
+    if (data.archivedBlocks.days !== undefined &&
+        (typeof data.archivedBlocks.days !== "object" || Array.isArray(data.archivedBlocks.days))) {
+      return { valid: false, error: '"archivedBlocks.days" must be an object keyed by date.' };
+    }
+    if (data.archivedBlocks.days) {
+      for (const [dateStr, blocks] of Object.entries(data.archivedBlocks.days)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          return { valid: false, error: `archivedBlocks.days key "${dateStr}" must be YYYY-MM-DD.` };
+        }
+        if (!Array.isArray(blocks)) {
+          return { valid: false, error: `archivedBlocks.days["${dateStr}"] must be an array.` };
+        }
+        for (let i = 0; i < blocks.length; i++) {
+          const err = _validateBlock(blocks[i], `Archived block ${dateStr}[${i}]`, { idOptional: true });
+          if (err) return { valid: false, error: err };
+        }
+      }
+    }
+  }
+
+  // colorPresets: optional array of color strings.
+  if (data.colorPresets !== undefined) {
+    if (!Array.isArray(data.colorPresets)) {
+      return { valid: false, error: '"colorPresets" must be an array.' };
+    }
+    for (let i = 0; i < data.colorPresets.length; i++) {
+      if (!_isValidColor(data.colorPresets[i])) {
+        return { valid: false, error: `colorPresets[${i}] is not a valid color (expected #RGB, #RRGGBB, or rgb()/rgba()).` };
+      }
+    }
+  }
+
+  // hiddenTimes: optional array of strings.
+  if (data.hiddenTimes !== undefined) {
+    if (!Array.isArray(data.hiddenTimes)) {
+      return { valid: false, error: '"hiddenTimes" must be an array.' };
+    }
+    for (let i = 0; i < data.hiddenTimes.length; i++) {
+      if (typeof data.hiddenTimes[i] !== "string") {
+        return { valid: false, error: `hiddenTimes[${i}] must be a string.` };
+      }
+    }
+  }
+
+  // categories: optional array of { id, name, color }.
+  if (data.categories !== undefined) {
+    if (!Array.isArray(data.categories)) {
+      return { valid: false, error: '"categories" must be an array.' };
+    }
+    for (let i = 0; i < data.categories.length; i++) {
+      const c = data.categories[i];
+      if (!c || typeof c !== "object") return { valid: false, error: `categories[${i}] must be an object.` };
+      if (typeof c.id !== "string" || !c.id) return { valid: false, error: `categories[${i}].id must be a non-empty string.` };
+      if (typeof c.name !== "string") return { valid: false, error: `categories[${i}].name must be a string.` };
+      if (!_isValidColor(c.color)) return { valid: false, error: `categories[${i}].color is not a valid color.` };
+    }
+  }
+
+  // blockTemplates: optional array.
+  if (data.blockTemplates !== undefined) {
+    if (!Array.isArray(data.blockTemplates)) {
+      return { valid: false, error: '"blockTemplates" must be an array.' };
+    }
+    for (let i = 0; i < data.blockTemplates.length; i++) {
+      const t = data.blockTemplates[i];
+      if (!t || typeof t !== "object") return { valid: false, error: `blockTemplates[${i}] must be an object.` };
+      if (typeof t.title !== "string") return { valid: false, error: `blockTemplates[${i}].title must be a string.` };
+    }
+  }
+
+  return { valid: true, data };
+}
+
+function _validateBlock(b, label, opts = {}) {
+  if (!b || typeof b !== "object" || Array.isArray(b)) {
+    return `${label} must be an object.`;
+  }
+  if (!opts.idOptional) {
+    if (typeof b.id !== "string" || !b.id) return `${label}: 'id' must be a non-empty string.`;
+  }
+  if (typeof b.title !== "string") return `${label}: 'title' must be a string.`;
+  if (b.notes !== undefined && typeof b.notes !== "string") return `${label}: 'notes' must be a string.`;
+  if (b.color !== undefined && b.color !== null && !_isValidColor(b.color)) {
+    return `${label}: 'color' is not a valid color (expected #RGB, #RRGGBB, or rgb()/rgba()).`;
+  }
+  if (b.recurring !== undefined && typeof b.recurring !== "boolean") return `${label}: 'recurring' must be boolean.`;
+  if (b.archived !== undefined && typeof b.archived !== "boolean") return `${label}: 'archived' must be boolean.`;
+  if (b.carryOver !== undefined && typeof b.carryOver !== "boolean") return `${label}: 'carryOver' must be boolean.`;
+  if (b.preserveTaskState !== undefined && typeof b.preserveTaskState !== "boolean") return `${label}: 'preserveTaskState' must be boolean.`;
+  if (b.category !== undefined && b.category !== null && typeof b.category !== "string") return `${label}: 'category' must be a string.`;
+
+  // For non-recurring blocks, startTime/endTime are required and must look ISO-ish.
+  if (!b.recurring) {
+    if (typeof b.startTime !== "string" || !_isIsoLike(b.startTime)) {
+      return `${label}: 'startTime' must be ISO-like (YYYY-MM-DDTHH:MM[:SS]).`;
+    }
+    if (typeof b.endTime !== "string" || !_isIsoLike(b.endTime)) {
+      return `${label}: 'endTime' must be ISO-like.`;
+    }
+  } else {
+    if (b.startTime !== undefined && b.startTime !== null && (typeof b.startTime !== "string" || !_isIsoLike(b.startTime))) {
+      return `${label}: 'startTime' must be ISO-like if present.`;
+    }
+    if (b.endTime !== undefined && b.endTime !== null && (typeof b.endTime !== "string" || !_isIsoLike(b.endTime))) {
+      return `${label}: 'endTime' must be ISO-like if present.`;
+    }
+  }
+
+  // tasks: optional array of { text, completed? }
+  if (b.tasks !== undefined) {
+    if (!Array.isArray(b.tasks)) return `${label}: 'tasks' must be an array.`;
+    for (let j = 0; j < b.tasks.length; j++) {
+      const t = b.tasks[j];
+      if (!t || typeof t !== "object") return `${label} task ${j}: must be an object.`;
+      if (typeof t.text !== "string") return `${label} task ${j}: 'text' must be a string.`;
+      if (t.completed !== undefined && typeof t.completed !== "boolean") {
+        return `${label} task ${j}: 'completed' must be boolean.`;
+      }
+    }
+  }
+
+  // recurrenceDays: optional array of weekday short names.
+  if (b.recurrenceDays !== undefined) {
+    if (!Array.isArray(b.recurrenceDays)) return `${label}: 'recurrenceDays' must be an array.`;
+    const validDays = new Set(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+    for (const day of b.recurrenceDays) {
+      if (!validDays.has(day)) {
+        return `${label}: 'recurrenceDays' contains "${day}" — must be one of Sun/Mon/Tue/Wed/Thu/Fri/Sat.`;
+      }
+    }
+  }
+
+  return null;
+}
+
+function _isIsoLike(s) {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:?\d{2})?$/.test(s);
+}
+
+function _isValidColor(s) {
+  if (typeof s !== "string") return false;
+  if (/^#[0-9A-Fa-f]{3}([0-9A-Fa-f]{3})?$/.test(s)) return true;
+  if (/^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/.test(s)) return true;
+  if (/^rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(\d*\.?\d+)\s*\)$/.test(s)) return true;
+  return false;
+}
+
 function importData(data) {
   if (!data) return;
+
+  const validation = validateImportData(data);
+  if (!validation.valid) {
+    alert(`Import failed: ${validation.error}\n\nNo data was modified.`);
+    return;
+  }
 
   if (confirm("This will replace all your current data. Are you sure?")) {
     if (data.timeBlocks) timeBlocks = data.timeBlocks;
