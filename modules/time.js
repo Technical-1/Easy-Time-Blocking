@@ -107,7 +107,9 @@ export function computeTimeRangeFromSelection(startCell, endCell, dateStr) {
 
   if (!start24 || !end24) return null;
 
-  // Add 30 minutes to end time (since we're selecting the start of each slot)
+  // Add 30 minutes to end time (since we're selecting the start of each slot).
+  // If the resulting end would cross midnight, return null — same-day blocks
+  // only. See CODE_AUDIT_TRACKING.md#f5.
   const [endH, endM] = end24.split(":").map(Number);
   let newEndM = endM + 30;
   let newEndH = endH;
@@ -115,7 +117,9 @@ export function computeTimeRangeFromSelection(startCell, endCell, dateStr) {
     newEndM -= 60;
     newEndH += 1;
   }
-  if (newEndH >= 24) newEndH = 23; // Cap at 23:59
+  if (newEndH >= 24) {
+    return { error: "midnight" };
+  }
   end24 = String(newEndH).padStart(2, '0') + ":" + String(newEndM).padStart(2, '0');
 
   return {

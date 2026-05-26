@@ -2673,7 +2673,16 @@ if(editBlockId){
     tasks: tasksArr,
     category: blockCategorySelect ? blockCategorySelect.value : ""
   };
-  const {start, end} = computeTimeRangeFromSelection();
+  const range = computeTimeRangeFromSelection();
+  if (!range) {
+    alert("Unable to determine the selected time range. Please try selecting again.");
+    return;
+  }
+  if (range.error === "midnight") {
+    alert("Blocks must end before midnight. Please pick a slot earlier than 11:30 PM, or select multiple slots ending at 11:30 PM or earlier.");
+    return;
+  }
+  const { start, end } = range;
   // Validate time range using minutes for reliable comparison
   const startTime = start.split("T")[1].slice(0, 5);
   const endTime = end.split("T")[1].slice(0, 5);
@@ -2700,6 +2709,7 @@ if(editBlockId){
   block.endTime = end;
   timeBlocks.blocks.push(block);
 }
+
 
 saveBlocksToStorage(timeBlocks);
 hideOverlay();
@@ -3144,7 +3154,14 @@ const endLabel = dailyBody.rows[maxR].cells[0]?.textContent;
 if (!startLabel || !endLabel) return null;
 
 const endIndex = timeSlots.indexOf(endLabel) + 1;
-const endLabel2 = (endIndex < timeSlots.length) ? timeSlots[endIndex] : endLabel;
+// If the selection includes the last slot (11:30 PM), the block's natural end
+// is the following slot (12:00 AM next day). The app currently doesn't support
+// blocks crossing midnight (per CODE_AUDIT_TRACKING.md Q1), so refuse here and
+// let the caller surface a clear message. See CODE_AUDIT_TRACKING.md#f5.
+if (endIndex >= timeSlots.length) {
+  return { error: "midnight" };
+}
+const endLabel2 = timeSlots[endIndex];
 
 const startTime24 = convert12To24(startLabel);
 const endTime24 = convert12To24(endLabel2);
@@ -3163,21 +3180,16 @@ for(let i=0; i<tbody.rows.length; i++){
 return -1;
 }
 function computeRowSpan(tbody, range){
-let count=0;
-let started=false;
-for(let i=0; i<tbody.rows.length; i++){
-  const lbl = tbody.rows[i].cells[0].textContent;
-  if(lbl===range[0]){
-    started=true; count++;
-  } else if(started){
-    if(lbl===range[range.length-1]){
-      count++;
-      break;
-    }
-    count++;
-  }
+// Count the rows whose label is in `range`. The previous started/break loop had
+// an edge case where range.length === 1 (a 30-minute block) ran off the end of
+// the table because the break check sat in the `else if(started)` branch. See
+// CODE_AUDIT_TRACKING.md#f2.
+if (!range || range.length === 0) return 1;
+let count = 0;
+for (const lbl of range) {
+  if (findTableRowIndex(tbody, lbl) >= 0) count++;
 }
-return count;
+return count || 1;
 }
 function highlightCurrentTime(){
 document.querySelectorAll(".current-time").forEach(el=>el.classList.remove("current-time"));
@@ -3209,10 +3221,14 @@ for(let i=0; i<48; i++){
 return arr;
 }
 function convert24To12(hhmm){
+// Preserve the actual minutes value. Pre-fix this collapsed everything to ':00'
+// or ':30', which silently corrupted blocks whose startTime didn't fall on the
+// half-hour (imported backups, future sub-30-min features). See
+// CODE_AUDIT_TRACKING.md#f3.
 const [H,M] = hhmm.split(":").map(x=>parseInt(x,10));
 const ampm = (H>=12)?"PM":"AM";
 let hh = H%12; if(hh===0)hh=12;
-return `${hh}:${(M===0?"00":"30")} ${ampm}`;
+return `${hh}:${String(M).padStart(2,"0")} ${ampm}`;
 }
 function convert12To24(label){
 const parts=label.split(" ");
