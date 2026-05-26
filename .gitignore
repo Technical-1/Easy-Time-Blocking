@@ -1,0 +1,10 @@
+# Audit-internal scratch — kept locally as a working source of truth,
+# not part of the repo. See https://github.com/Technical-1/Easy-Time-Blocking
+# for the actual app.
+CODE_AUDIT_TRACKING.md
+.project-hub-tasks.json
+
+# macOS resource forks (already polluting the repo's history;
+# not adding them to a removal commit, but blocking new ones)
+._*
+.DS_Store
