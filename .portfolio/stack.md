@@ -1,51 +1,44 @@
-# Technology Stack
+# Tech Stack
+
+## Core Technologies
+
+| Category | Technology | Version | Why this choice |
+|----------|------------|---------|-----------------|
+| Language | JavaScript | ES6+ (native modules) | No build step required; browser runs the source directly |
+| Markup | HTML5 | — | Single `index.html` hosts every view |
+| Styling | CSS3 | — | Custom properties drive theming without JS |
+| Storage | `localStorage` | Web Storage API | Synchronous JSON-friendly persistence, no setup |
+| Hosting | GitHub Pages | — | Free, HTTPS, push-to-deploy from `main` |
 
 ## Frontend
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| HTML5 | - | Semantic markup, accessibility (ARIA) |
-| CSS3 | - | Styling, animations, theming |
-| Vanilla JavaScript | ES6+ | Application logic |
-| ES Modules | Native | Code organization |
+- **Framework**: None — vanilla JS with native ES modules
+- **State management**: Plain JS objects mirrored to `localStorage`
+- **Styling**: Hand-written CSS with custom properties for theming
+- **Build tool**: None — files are served as-authored
 
-### Why Vanilla JavaScript?
+## Backend
 
-I deliberately chose not to use React, Vue, or any other framework. Here's why:
-
-1. **No Build Complexity**: The app runs directly in the browser without webpack, babel, or any transpilation step.
-
-2. **Performance**: No virtual DOM, no framework runtime overhead. The app loads instantly and runs smoothly on older devices.
-
-3. **Simplicity**: Anyone can clone the repo and open `index.html` to run it. No npm install, no environment setup.
-
-4. **Longevity**: Framework trends change rapidly. Vanilla JS will work forever.
-
-5. **Learning**: I wanted to deeply understand how things work at the DOM level rather than relying on framework abstractions.
+There is no backend. The app is fully client-side; all reads and writes go to `localStorage` on the device.
 
 ## Infrastructure
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| Hosting | GitHub Pages | Free static hosting |
-| Storage | localStorage | Client-side persistence |
-| Caching | Service Worker | Offline support |
-| Distribution | PWA Manifest | Installable app |
+- **Hosting**: GitHub Pages (auto-deploy from `main`)
+- **CI/CD**: GitHub Pages built-in publisher
+- **Monitoring**: None — no telemetry or analytics
 
-### Hosting on GitHub Pages
+## Development Tools
 
-I chose GitHub Pages because:
-- **Free**: No hosting costs
-- **Reliable**: Built on GitHub's infrastructure
-- **Simple**: Push to main branch = deploy
-- **HTTPS**: Automatic SSL certificates
-- **Custom Domain**: Easy to configure
+- **Package manager**: None
+- **Linting**: None
+- **Formatting**: None
+- **Testing**: Manual verification in the browser
 
-## PWA (Progressive Web App)
+## PWA Components
 
 ### Service Worker (`sw.js`)
 
-I implemented a **stale-while-revalidate** caching strategy:
+Stale-while-revalidate caching strategy:
 
 ```javascript
 // Serve from cache immediately, fetch update in background
@@ -58,11 +51,7 @@ cache.match(request).then((cachedResponse) => {
 });
 ```
 
-**Why this strategy?**
-- Users get instant responses from cache
-- Fresh content is fetched in background
-- Works offline seamlessly
-- No stale content on next visit
+The cache responds instantly on every load, and a background fetch refreshes the entry so the next load picks up new deploys without a manual cache bust.
 
 ### Web Manifest (`manifest.json`)
 
@@ -76,29 +65,11 @@ cache.match(request).then((cachedResponse) => {
 }
 ```
 
-Enables:
-- "Add to Home Screen" on mobile
-- Standalone app experience (no browser chrome)
-- Custom splash screen on iOS/Android
-
-## Key Dependencies
-
-**There are no external dependencies.** This was an intentional choice.
-
-### What I Built Instead of Using Libraries
-
-| Common Library | My Implementation |
-|----------------|-------------------|
-| Moment.js / date-fns | Custom `time.js` module (~100 lines) |
-| UUID library | `crypto.randomUUID()` or fallback generator |
-| Lodash debounce | Custom 10-line debounce function |
-| CSS-in-JS | CSS custom properties + native stylesheets |
-| State management | Plain objects + localStorage |
-| Testing framework | Manual testing (area for improvement) |
+Enables "Add to Home Screen" on iOS and Android, a standalone display mode without browser chrome, and a themed splash screen.
 
 ## Data Persistence
 
-### localStorage Schema
+### `localStorage` Schema
 
 ```javascript
 // Active time blocks
@@ -120,7 +91,7 @@ timeBlocks: {
   }]
 }
 
-// Archived blocks by date
+// Archived blocks grouped by date
 archivedBlocks: {
   days: {
     "YYYY-MM-DD": [block, block, ...]
@@ -135,50 +106,60 @@ hiddenTimes: ["12:00 AM", "12:30 AM", ...]
 theme: "auto" | "light" | "dark"
 ```
 
-### Why localStorage Over IndexedDB?
+### `localStorage` vs IndexedDB
 
-| localStorage | IndexedDB |
-|-------------|-----------|
+| `localStorage` | IndexedDB |
+|---------------|-----------|
 | Synchronous API | Async API |
-| 5-10MB limit | Much larger |
-| Simple key-value | Complex queries |
-| JSON.parse/stringify | Structured data |
+| 5–10 MB per origin | Effectively unbounded |
+| Simple key-value | Object stores and queries |
+| `JSON.parse`/`stringify` | Structured cloning |
 
-For a time-blocking app, localStorage is sufficient. I don't need complex queries or massive storage - just simple CRUD operations on JSON objects.
+Time-blocking data is a handful of JSON arrays well under 1 MB in real use, so `localStorage` wins on simplicity.
 
-## Development Workflow
+## Key Dependencies
 
-### Running Locally
+There are no runtime dependencies. The app's "dependencies" are the platform APIs it relies on:
+
+| Common library | What this project uses instead |
+|----------------|--------------------------------|
+| Moment.js / date-fns | `modules/time.js` (~100 lines) |
+| UUID library | `crypto.randomUUID()` with a small fallback |
+| Lodash `debounce` | A 10-line debounce in `modules/utils.js` |
+| CSS-in-JS | CSS custom properties in `styles.css` |
+| Redux / Zustand | Plain objects synced to `localStorage` |
+
+## Running Locally
 
 ```bash
-# Option 1: Direct file open
+# Direct file open works for the core UI
 open index.html
 
-# Option 2: Local server (for PWA testing)
+# Local server is needed for service-worker / PWA testing
 python -m http.server 8000
 # or
 npx serve
 ```
 
-### Deployment
+## Deployment
 
 ```bash
 git push origin main
-# GitHub Pages auto-deploys
+# GitHub Pages serves the new commit automatically
 ```
 
 ## Browser Support
 
-- Chrome 80+ (ES modules, CSS custom properties)
-- Firefox 75+ (ES modules, CSS custom properties)
-- Safari 13+ (ES modules, CSS custom properties)
-- Edge 80+ (Chromium-based)
+- Chrome 80+
+- Firefox 75+
+- Safari 13+
+- Edge 80+ (Chromium)
 
-### Notable Browser Features Used
+Required platform features used throughout the codebase:
 
-- `crypto.randomUUID()` for block IDs
+- `crypto.randomUUID()` for block IDs (with a fallback)
 - CSS `prefers-color-scheme` for auto dark mode
 - Native `<input type="color">` for color picking
-- `Notification` API for reminders
+- `Notification` API for pre-block reminders
 - Service Worker for offline support
-- ES6 modules with `type="module"`
+- ES6 modules via `<script type="module">`

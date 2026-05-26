@@ -1,6 +1,6 @@
-# Architecture Overview
+# Architecture
 
-## System Architecture Diagram
+## System Diagram
 
 ```mermaid
 flowchart TB
@@ -15,16 +15,14 @@ flowchart TB
             PV[Print View]
         end
 
-        subgraph Core["Core Application"]
-            direction TB
-            EM[Event Manager]
+        subgraph Core["Core Application (script.js)"]
+            EM[Event Delegation]
             SM[State Manager]
             TM[Theme Manager]
-            NM[Notification Manager]
+            NM[Notification Scheduler]
         end
 
-        subgraph Modules["ES6 Modules"]
-            direction TB
+        subgraph Modules["ES6 Modules (modules/)"]
             Storage[storage.js]
             Utils[utils.js]
             Time[time.js]
@@ -37,13 +35,13 @@ flowchart TB
             Notify[notifications.js]
         end
 
-        subgraph DataLayer["Data Layer"]
+        subgraph DataLayer["Persistence"]
             LS[(localStorage)]
         end
 
         subgraph PWA["PWA Layer"]
-            SW[Service Worker]
-            MF[Manifest]
+            SW[Service Worker - sw.js]
+            MF[manifest.json]
             Cache[(Browser Cache)]
         end
     end
@@ -67,147 +65,82 @@ flowchart TB
     Core --> Modules
 ```
 
-## Data Flow Diagram
+## Data Flow
 
-```mermaid
-flowchart LR
-    subgraph Input["User Input"]
-        Click[Click/Touch Events]
-        Drag[Drag Selection]
-        KB[Keyboard Shortcuts]
-    end
+1. The user opens the app; `index.html` boots `script.js`, which hydrates state from `localStorage` via `modules/storage.js`.
+2. Pointer or touch events on the time grid are caught by a single delegated listener on the table body, which routes to either the block-edit modal (tap) or the drag-select flow (drag).
+3. State changes (create/edit/delete block, toggle task, change category) update the in-memory state and write through to `localStorage` with debouncing.
+4. The renderer recomputes rowSpans in a single pass and updates the DOM; the current-time line and notification scheduler tick on a one-minute interval.
+5. The service worker serves cached static assets immediately and refreshes them in the background, so the app continues to work offline.
 
-    subgraph Processing["Event Processing"]
-        ED[Event Delegation]
-        VH[View Handler]
-        BH[Block Handler]
-    end
+## Component Descriptions
 
-    subgraph State["State Management"]
-        TB[timeBlocks]
-        AB[archivedBlocks]
-        CP[colorPresets]
-        HT[hiddenTimes]
-        CAT[categories]
-        TPL[templates]
-    end
+### `index.html`
+- **Purpose**: Single document holding every view (daily, statistics, archive, about, print) toggled by visibility.
+- **Location**: `index.html`
+- **Key responsibilities**: Markup for all views, modal containers, registration of the service worker and manifest.
 
-    subgraph Persistence["Persistence"]
-        LS[(localStorage)]
-    end
+### `script.js`
+- **Purpose**: Application orchestrator — event delegation, rendering, drag logic, modal lifecycle.
+- **Location**: `script.js`
+- **Key responsibilities**: Time-grid rendering with rowSpan, touch/mouse drag selection, recurring-block resolution at render time, current-time line ticker.
 
-    subgraph Output["Output"]
-        DOM[DOM Render]
-        Notif[Notifications]
-        Export[Export Files]
-    end
+### `modules/`
+- **Purpose**: Pure-function helpers extracted from `script.js` so they can be unit-tested or reused.
+- **Location**: `modules/{storage,utils,time,search,statistics,data,archive,print,theme,notifications}.js`
+- **Key responsibilities**: `storage.js` owns the `localStorage` schema; `time.js` parses and formats times; `archive.js` moves past days; `data.js` handles JSON/TXT import and export.
 
-    Click --> ED
-    Drag --> ED
-    KB --> ED
+### `sw.js`
+- **Purpose**: Offline support via a stale-while-revalidate cache.
+- **Location**: `sw.js`
+- **Key responsibilities**: Precache static assets on install, serve from cache and refresh in the background on fetch.
 
-    ED --> VH
-    ED --> BH
+### `styles.css`
+- **Purpose**: Theming and layout, including dark mode via CSS custom properties.
+- **Location**: `styles.css`
+- **Key responsibilities**: `:root` palette, `[data-theme="dark"]` override, responsive breakpoints for mobile layouts.
 
-    VH --> State
-    BH --> State
+## External Integrations
 
-    State --> LS
-    State --> DOM
-    State --> Notif
-    State --> Export
-```
+| Service | Purpose | Notes |
+|---------|---------|-------|
+| GitHub Pages | Static hosting and HTTPS | Auto-deploy on push to `main` |
+| Browser Notification API | 5-minute pre-block reminders | Only fires while a tab is open |
+| Service Worker API | Offline cache | Stale-while-revalidate |
 
 ## Key Architectural Decisions
 
-### 1. Zero Dependencies Architecture
+### Zero runtime dependencies
+- **Context**: A planner that needs to work offline, install as a PWA, and stay buildable in five years without dependency maintenance.
+- **Decision**: Vanilla JS with native ES modules, no bundler, no framework, no library at runtime.
+- **Rationale**: Frameworks would add a transpile step and ~40 KB of runtime for what is mostly DOM and `localStorage` work. The trade-off is more hand-written code (e.g., a small `time.js` instead of a date library), but the resulting bundle is ~190 KB total with no upgrade treadmill.
 
-I made a deliberate choice to build this application with zero external dependencies. This decision was driven by several factors:
+### Single `script.js` plus extracted modules
+- **Context**: `script.js` grew large (~3.7k lines) but moving everything into a build-required package layout would lose the no-build-step property.
+- **Decision**: Keep `script.js` as the entry orchestrator; extract pure helpers (time math, search, statistics, storage I/O, theming) into `modules/` consumed via native ES module imports.
+- **Rationale**: The browser loads ES modules directly with no bundler. Pure helpers can be reasoned about and replaced in isolation; the orchestration logic stays in one file because event handlers, render, and drag state are tightly coupled and splitting them would just add indirection.
 
-- **Simplicity**: No build step, no package manager, no node_modules. Just open `index.html` and it works.
-- **Performance**: No framework overhead means faster load times and smaller bundle size (~190KB total).
-- **Longevity**: No dependency updates to manage, no security vulnerabilities from third-party code, no breaking changes from upstream packages.
-- **Learning**: Building everything from scratch forced me to deeply understand DOM manipulation, event handling, and state management.
+### `localStorage` over IndexedDB
+- **Context**: A few JSON arrays (blocks, archive, preferences) that comfortably fit in single-digit MB, with no query needs.
+- **Decision**: Plain `localStorage` access wrapped by `modules/storage.js`.
+- **Rationale**: Synchronous API keeps render and persistence code simple. IndexedDB's object stores and async API would be overhead with no payoff at this scale. The 5–10 MB quota is far above real usage.
 
-### 2. Single-File vs Modular Code
+### Event delegation on the table body
+- **Context**: Time blocks are created and removed often; attaching a listener per block would leak as blocks come and go.
+- **Decision**: One delegated `click`/`pointerdown`/`touchstart` listener on the table body that dispatches based on the event target.
+- **Rationale**: Listener count is constant regardless of how many blocks exist. Newly rendered blocks need no setup. Removed blocks need no listener cleanup.
 
-The main `script.js` file is large (~3700 lines), but I kept it as a single file initially for simplicity. Later, I refactored common utilities into ES6 modules (`/modules/`) for better organization while maintaining backward compatibility:
+### Recurring blocks computed at render time, not stored per day
+- **Context**: A recurring block could be stored as N copies (one per day) or once with a weekday set; the former duplicates state and bloats storage.
+- **Decision**: Store a single block with `recurrenceDays: ["Mon","Wed",…]`. At render time, the daily view selects blocks whose `recurrenceDays` include the current weekday, then applies `carryOver` (tasks/notes from the previous occurrence) and `preserveTaskState` (whether checked tasks reset across days).
+- **Rationale**: One source of truth in storage, plus a clean separation between the "template" (block definition) and per-day state (carry-over result, task checks).
 
-```
-modules/
-├── index.js       # Re-exports all modules
-├── storage.js     # localStorage operations
-├── utils.js       # Common utilities
-├── time.js        # Time parsing/conversion
-├── search.js      # Search functionality
-├── statistics.js  # Stats calculations
-├── data.js        # Import/export
-├── archive.js     # Archiving logic
-├── print.js       # Print formatting
-├── theme.js       # Dark mode
-└── notifications.js # Browser notifications
-```
+### Stale-while-revalidate service worker
+- **Context**: PWA needed to work fully offline but also pick up new deploys promptly.
+- **Decision**: Serve from cache on first hit, then refresh the cache entry from the network in the background for the next load.
+- **Rationale**: Users get instant boots without waiting on the network, and the next load sees the latest deploy without manual cache busting.
 
-### 3. localStorage for Persistence
-
-I chose localStorage over IndexedDB because:
-
-- **Simplicity**: Synchronous API, no callbacks or promises needed for basic operations
-- **Sufficient Capacity**: 5-10MB is more than enough for time block data
-- **No Setup**: Works immediately, no database initialization required
-- **JSON-Native**: Perfect for storing JavaScript objects
-
-Data structures:
-- `timeBlocks`: Active schedule blocks with tasks, notes, colors
-- `archivedBlocks`: Historical blocks organized by date
-- `colorPresets`, `categories`, `blockTemplates`: User preferences
-- `hiddenTimes`: Customized time slot visibility
-- `theme`: Light/dark mode preference
-
-### 8. Current Time Indicator
-
-I added a real-time red line across the schedule showing the current time. It highlights the current time slot row and updates every minute. The implementation required careful z-index management to ensure the line appears above block content but below modals.
-
-### 4. Event Delegation Pattern
-
-Instead of attaching event listeners to every block element, I implemented event delegation on the table body. This provides:
-
-- **Performance**: Single listener handles all blocks
-- **Dynamic Content**: Works automatically for newly rendered blocks
-- **Memory Efficiency**: No listener cleanup needed when blocks are removed
-
-### 5. Progressive Web App (PWA)
-
-I implemented PWA features to make the app installable and offline-capable:
-
-- **Service Worker**: Caches all static assets using stale-while-revalidate strategy
-- **Web Manifest**: Enables "Add to Home Screen" on mobile devices
-- **Offline First**: App works without internet connection
-
-### 6. CSS Custom Properties for Theming
-
-I used CSS custom properties (variables) for theming instead of JavaScript-based theme switching:
-
-```css
-:root {
-  --bg-primary: #ffffff;
-  --text-primary: #333333;
-}
-[data-theme="dark"] {
-  --bg-primary: #1a1a1a;
-  --text-primary: #e0e0e0;
-}
-```
-
-Benefits:
-- Instant theme switching with a single attribute change
-- Respects system preference via `prefers-color-scheme`
-- No JavaScript needed for style calculations
-
-### 7. Responsive Design Philosophy
-
-I built the UI mobile-first with responsive breakpoints:
-
-- Touch-friendly interactions (drag-to-create works on mobile)
-- Flexible layouts that adapt to screen size
-- No separate mobile app needed - same codebase everywhere
+### CSS custom properties for theming
+- **Context**: Dark mode needed to switch instantly, honor `prefers-color-scheme`, and avoid a flash of the wrong theme on first paint.
+- **Decision**: All themable values live in `:root` custom properties, overridden under `[data-theme="dark"]`. The auto setting hooks `prefers-color-scheme`.
+- **Rationale**: Theme switching is a single attribute change with no JS re-render. The auto setting falls out of a CSS media query, so there is no JS race that could cause a flash.
