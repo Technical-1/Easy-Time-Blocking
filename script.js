@@ -672,6 +672,31 @@ function getCategoryColor(categoryId) {
   return cat ? cat.color : null;
 }
 
+// Sweep all collections and clear references to a deleted category.
+function cascadeClearCategoryRefs(deletedId) {
+  let blocksChanged = false;
+  timeBlocks.blocks.forEach(b => {
+    if (b.category === deletedId) { b.category = ""; blocksChanged = true; }
+  });
+  if (blocksChanged) saveBlocksToStorage(timeBlocks, true);
+
+  let archiveChanged = false;
+  if (archivedBlocks && archivedBlocks.days) {
+    for (const dayKey in archivedBlocks.days) {
+      archivedBlocks.days[dayKey].forEach(b => {
+        if (b.category === deletedId) { b.category = ""; archiveChanged = true; }
+      });
+    }
+  }
+  if (archiveChanged) saveArchivedToStorage(archivedBlocks);
+
+  let templatesChanged = false;
+  blockTemplates.forEach(t => {
+    if (t.category === deletedId) { t.category = ""; templatesChanged = true; }
+  });
+  if (templatesChanged) saveTemplatesToStorage(blockTemplates);
+}
+
 function setupTemplateHandlers() {
   // Template selection handler
   if (templateSelect) {
@@ -843,10 +868,13 @@ function buildCategoriesContainer() {
     deleteBtn.style.color = "#dc3545";
     deleteBtn.addEventListener("click", () => {
       if (confirm(`Delete category "${cat.name}"?`)) {
+        const deletedId = cat.id;
         categories.splice(index, 1);
         saveCategoriesToStorage(categories);
+        cascadeClearCategoryRefs(deletedId);
         buildCategoriesContainer();
         populateCategorySelect();
+        if (dailyView.classList.contains("active")) displayDailyBlocks();
       }
     });
 
@@ -2453,15 +2481,13 @@ if (blockData) {
     blockColorHex.textContent = blockColor.toUpperCase();
   }
 
-  // Update category color swatch and custom color visibility
-  if (categoryColorSwatch && blockData.category) {
-    const catColor = getCategoryColor(blockData.category);
-    categoryColorSwatch.style.backgroundColor = catColor || 'transparent';
-    // Hide custom color when category is set
+  // Treat orphan category refs as "no category" so the custom color picker stays usable.
+  const resolvedCatColor = blockData.category ? getCategoryColor(blockData.category) : null;
+  if (categoryColorSwatch && resolvedCatColor) {
+    categoryColorSwatch.style.backgroundColor = resolvedCatColor;
     if (customColorSection) customColorSection.style.display = 'none';
   } else if (categoryColorSwatch) {
     categoryColorSwatch.style.backgroundColor = 'transparent';
-    // Show custom color when no category
     if (customColorSection) customColorSection.style.display = '';
   }
 
