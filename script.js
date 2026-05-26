@@ -3288,6 +3288,19 @@ const g=100+Math.floor(Math.random()*156);
 const b=100+Math.floor(Math.random()*156);
 return `rgb(${r},${g},${b})`;
 }
+
+// Escape user-controlled strings before inserting into innerHTML. Required at
+// every site where untrusted content (block titles, task text, notes) is
+// composed into an HTML string. See CODE_AUDIT_TRACKING.md#f4.
+function escapeHtml(str){
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 function clearPopupFields(){
 blockTitleInput.value="";
 blockNotesInput.value="";
@@ -3702,7 +3715,7 @@ function buildPrintView() {
           const endTime = block.endTime ? block.endTime.split("T")[1].slice(0, 5) : "";
           html += `<span class="print-time">${time}${endTime ? ` - ${endTime}` : ""}</span>`;
         }
-        html += `<span class="print-title">${block.title || "Untitled"}</span>`;
+        html += `<span class="print-title">${escapeHtml(block.title || "Untitled")}</span>`;
         if (block.recurring) {
           html += `<span class="print-recurring">(Recurring)</span>`;
         }
@@ -3712,13 +3725,13 @@ function buildPrintView() {
           html += `<ul class="print-tasks">`;
           block.tasks.forEach(task => {
             const checked = task.completed ? "✓" : "○";
-            html += `<li>${checked} ${task.text}</li>`;
+            html += `<li>${checked} ${escapeHtml(task.text)}</li>`;
           });
           html += `</ul>`;
         }
         
         if (block.notes) {
-          html += `<p class="print-notes">${block.notes}</p>`;
+          html += `<p class="print-notes">${escapeHtml(block.notes)}</p>`;
         }
         
         html += `</div>`;
