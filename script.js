@@ -144,7 +144,8 @@ function saveTemplatesToStorage(arr){
 }
 
 // Daily task state for recurring blocks - tracks task completion per day
-// Structure: { "YYYY-MM-DD": { "blockId": { "taskText": completed } } }
+// Structure: { "YYYY-MM-DD": { "blockId": { "taskId": completed } } }
+// Legacy data used taskText as the inner key; migrateDailyState() converts on load.
 function loadDailyTaskStateFromStorage(){
   try {
     const data = localStorage.getItem("dailyTaskState");
@@ -164,18 +165,96 @@ function saveDailyTaskStateToStorage(obj){
 }
 
 // Get task completion state for a specific block on a specific date
-function getDailyTaskState(dateStr, blockId, taskText){
+function getDailyTaskState(dateStr, blockId, taskId){
   const state = loadDailyTaskStateFromStorage();
-  return state[dateStr]?.[blockId]?.[taskText] ?? null;
+  return state[dateStr]?.[blockId]?.[taskId] ?? null;
 }
 
 // Set task completion state for a specific block on a specific date
-function setDailyTaskState(dateStr, blockId, taskText, completed){
+function setDailyTaskState(dateStr, blockId, taskId, completed){
   const state = loadDailyTaskStateFromStorage();
   if (!state[dateStr]) state[dateStr] = {};
   if (!state[dateStr][blockId]) state[dateStr][blockId] = {};
-  state[dateStr][blockId][taskText] = completed;
+  state[dateStr][blockId][taskId] = completed;
   saveDailyTaskStateToStorage(state);
+}
+
+// Stable task ids let daily state key by id instead of text — survives renames.
+function assignTaskIds(block) {
+  if (!block || !Array.isArray(block.tasks)) return false;
+  let changed = false;
+  block.tasks.forEach(t => {
+    if (!t.id) { t.id = crypto.randomUUID(); changed = true; }
+  });
+  return changed;
+}
+
+function assignTaskIdsToAllCollections() {
+  let blocksChanged = false;
+  timeBlocks.blocks.forEach(b => { if (assignTaskIds(b)) blocksChanged = true; });
+  if (blocksChanged) saveBlocksToStorage(timeBlocks, true);
+
+  let archiveChanged = false;
+  if (archivedBlocks && archivedBlocks.days) {
+    for (const dayKey in archivedBlocks.days) {
+      archivedBlocks.days[dayKey].forEach(b => {
+        if (assignTaskIds(b)) archiveChanged = true;
+      });
+    }
+  }
+  if (archiveChanged) saveArchivedToStorage(archivedBlocks);
+
+  let templatesChanged = false;
+  blockTemplates.forEach(t => { if (assignTaskIds(t)) templatesChanged = true; });
+  if (templatesChanged) saveTemplatesToStorage(blockTemplates);
+}
+
+// Idempotent: text-keys → id-keys via task-text lookup; orphan keys dropped.
+function migrateDailyState() {
+  const state = loadDailyTaskStateFromStorage();
+  if (!state || Object.keys(state).length === 0) return;
+
+  const blockMaps = new Map();
+  const addBlock = (b, id) => {
+    if (!id || !Array.isArray(b.tasks)) return;
+    const m = blockMaps.get(id) || new Map();
+    b.tasks.forEach(t => { if (t.id) m.set(t.text, t.id); });
+    blockMaps.set(id, m);
+  };
+  timeBlocks.blocks.forEach(b => addBlock(b, b.id));
+  if (archivedBlocks && archivedBlocks.days) {
+    for (const dayKey in archivedBlocks.days) {
+      archivedBlocks.days[dayKey].forEach(b => addBlock(b, b.recurringBlockId || b.id));
+    }
+  }
+
+  let changed = false;
+  for (const dateStr in state) {
+    for (const blockId in state[dateStr]) {
+      const blockState = state[dateStr][blockId];
+      const textToId = blockMaps.get(blockId);
+      if (!textToId) continue;
+      const validIds = new Set(textToId.values());
+      const newBlockState = {};
+      let blockChanged = false;
+      for (const key in blockState) {
+        if (validIds.has(key)) {
+          newBlockState[key] = blockState[key];
+        } else if (textToId.has(key)) {
+          newBlockState[textToId.get(key)] = blockState[key];
+          blockChanged = true;
+        } else {
+          blockChanged = true;
+        }
+      }
+      if (blockChanged) {
+        state[dateStr][blockId] = newBlockState;
+        changed = true;
+      }
+    }
+  }
+
+  if (changed) saveDailyTaskStateToStorage(state);
 }
 
 // Clean up old daily task states (keep last 30 days)
@@ -371,6 +450,8 @@ const timeSlots = generateTimeSlots12();
 // On load: auto-archive older blocks
 autoArchiveOldBlocks();
 reconcileHiddenTimes();
+assignTaskIdsToAllCollections();
+migrateDailyState();
 
 // Build daily
 buildDailyTable();
@@ -740,7 +821,7 @@ function setupTemplateHandlers() {
       if (template.tasks && template.tasks.length > 0) {
         taskListContainer.innerHTML = '';
         template.tasks.forEach(task => {
-          addTaskToUI(task.text);
+          addTaskToUI(task.text, task.id);
         });
       }
 
@@ -925,9 +1006,10 @@ function handleDuplicateFromPopup() {
   hideOverlay();
 }
 
-function addTaskToUI(taskText) {
+function addTaskToUI(taskText, taskId) {
   const div = document.createElement("div");
   div.className = "task-item";
+  div.dataset.taskId = taskId || crypto.randomUUID();
 
   const input = document.createElement("input");
   input.type = "text";
@@ -937,7 +1019,7 @@ function addTaskToUI(taskText) {
   const removeBtn = document.createElement("button");
   removeBtn.type = "button";
   removeBtn.className = "task-remove-btn";
-  removeBtn.innerHTML = "&times;";
+  removeBtn.textContent = "×";
   removeBtn.addEventListener("click", () => div.remove());
 
   div.appendChild(input);
@@ -1511,7 +1593,7 @@ function handleCopyDay() {
       recurring: false,
       recurrenceDays: [],
       carryOver: false,
-      tasks: block.tasks ? block.tasks.map(t => ({ text: t.text, completed: false })) : [],
+      tasks: block.tasks ? block.tasks.map(t => ({ id: crypto.randomUUID(), text: t.text, completed: false })) : [],
       startTime: `${targetDateStr}T${startTime}`,
       endTime: `${targetDateStr}T${endTime}`,
       category: block.category || ""
@@ -1576,8 +1658,8 @@ function setupBlockEventDelegation() {
     if (checkbox) {
       const cell = checkbox.closest("td");
       const blockId = cell?.dataset.blockId;
-      const taskText = checkbox.nextElementSibling?.textContent;
-      if (blockId && taskText) {
+      const taskId = checkbox.dataset.taskId;
+      if (blockId && taskId) {
         const block = timeBlocks.blocks.find(b => b.id === blockId);
         if (block) {
           const span = checkbox.nextElementSibling;
@@ -1590,11 +1672,11 @@ function setupBlockEventDelegation() {
             // For recurring blocks, store task state in daily override
             // This keeps the template clean and each day independent
             const todayStr = formatDate(currentDate);
-            setDailyTaskState(todayStr, blockId, taskText, checkbox.checked);
+            setDailyTaskState(todayStr, blockId, taskId, checkbox.checked);
           } else {
             // For non-recurring blocks, update the block directly
             if (block.tasks) {
-              const task = block.tasks.find(t => t.text === taskText);
+              const task = block.tasks.find(t => t.id === taskId);
               if (task) {
                 task.completed = checkbox.checked;
               }
@@ -2037,8 +2119,9 @@ function archiveRecurringBlocksForPastDays(today) {
       // Create archive entry with the daily task state
       const taskState = dailyState[dateStr]?.[block.id] || {};
       const archivedTasks = (block.tasks || []).map(t => ({
+        id: t.id,
         text: t.text,
-        completed: taskState[t.text] ?? false
+        completed: taskState[t.id] ?? false
       }));
 
       // Archive this recurring block instance
@@ -2095,8 +2178,9 @@ function findMostRecentArchivedInstance(block) {
           title: block.title,
           notes: block.notes,
           tasks: (block.tasks || []).map(t => ({
+            id: t.id,
             text: t.text,
-            completed: blockState[t.text] ?? false
+            completed: blockState[t.id] ?? false
           })),
           recurring: true,
           recurringBlockId: block.id
@@ -2176,8 +2260,9 @@ function applyCarryOverData(block, dateStr) {
   const todayStr = dateStr || formatDate(currentDate);
   if (displayBlock.tasks && displayBlock.tasks.length > 0) {
     displayBlock.tasks = displayBlock.tasks.map(t => {
-      const dailyState = getDailyTaskState(todayStr, block.id, t.text);
+      const dailyState = getDailyTaskState(todayStr, block.id, t.id);
       return {
+        id: t.id,
         text: t.text,
         // Use daily state if set, otherwise keep current (unchecked)
         completed: dailyState !== null ? dailyState : t.completed
@@ -2640,8 +2725,13 @@ if(editBlockId){
 
   const oldTasks = block.tasks || [];
   block.tasks = tasksArr.map(t => {
-    const old = oldTasks.find(o => o.text===t.text);
-    return old ? { text:t.text, completed:old.completed } : t;
+    // Match by id first (preserves completion across renames); text fallback for legacy data.
+    const old = oldTasks.find(o => o.id === t.id) || oldTasks.find(o => o.text === t.text);
+    return {
+      id: t.id,
+      text: t.text,
+      completed: old ? !!old.completed : false
+    };
   });
   
   // Update time/date if provided in edit mode
@@ -2774,7 +2864,7 @@ function duplicateBlock(blockToDuplicate) {
     recurrenceDays: blockToDuplicate.recurrenceDays ? [...blockToDuplicate.recurrenceDays] : [],
     carryOver: blockToDuplicate.carryOver || false,
     preserveTaskState: blockToDuplicate.preserveTaskState || false,
-    tasks: blockToDuplicate.tasks ? blockToDuplicate.tasks.map(t => ({ text: t.text, completed: false })) : [],
+    tasks: blockToDuplicate.tasks ? blockToDuplicate.tasks.map(t => ({ id: crypto.randomUUID(), text: t.text, completed: false })) : [],
     startTime: blockToDuplicate.startTime,
     endTime: blockToDuplicate.endTime,
     category: blockToDuplicate.category || ""
@@ -2821,6 +2911,7 @@ function renderBlockContent(cell, block){
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = !!task.completed;
+      if (task.id) cb.dataset.taskId = task.id;
 
       const span = document.createElement("span");
       span.textContent = task.text;
@@ -2907,12 +2998,13 @@ return timeBlocks.blocks.filter(b => {
 **************************************************/
 function buildTaskList(tasks){
 taskListContainer.innerHTML = "";
-tasks.forEach(t => addTaskRow(t.text));
+tasks.forEach(t => addTaskRow(t.text, t.id));
 if(!tasks.length) addTaskRow("");
 }
-function addTaskRow(taskText){
+function addTaskRow(taskText, taskId){
 const rowDiv = document.createElement("div");
 rowDiv.className = "task-row";
+rowDiv.dataset.taskId = taskId || crypto.randomUUID();
 
 const input = document.createElement("input");
 input.type = "text";
@@ -2944,7 +3036,11 @@ rows.forEach(div => {
   const inp = div.querySelector("input[type='text']");
   if(!inp)return;
   const txt = inp.value.trim();
-  if(txt) tasks.push({text:txt, completed:false});
+  if(txt) tasks.push({
+    id: div.dataset.taskId || crypto.randomUUID(),
+    text: txt,
+    completed: false
+  });
 });
 return tasks;
 }
@@ -3676,6 +3772,8 @@ function importData(data) {
     saveCategoriesToStorage(categories);
     saveTemplatesToStorage(blockTemplates);
     reconcileHiddenTimes();
+    assignTaskIdsToAllCollections();
+    migrateDailyState();
 
     buildColorsContainer();
     buildCategoriesContainer();
