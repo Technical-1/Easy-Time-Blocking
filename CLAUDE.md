@@ -41,7 +41,7 @@ See `CODE_AUDIT_TRACKING.md#f11` for the full rationale.
 
 ### File Structure
 - `index.html` - Single HTML file containing all markup and view structure
-- `script.js` - All application logic (~2200 lines, single file)
+- `script.js` - All application logic (~3800 lines, single file)
 - `styles.css` - Complete styling with CSS custom properties for theming
 - `manifest.json` - PWA manifest for installability
 - `sw.js` - Service worker for offline support

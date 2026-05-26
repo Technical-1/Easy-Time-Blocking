@@ -1,83 +1,10 @@
 /***************************************************
-* ES Module Imports
+* Constants
 **************************************************/
-import {
-  // Storage
-  saveBlocksToStorage as saveBlocksToStorageModule,
-  loadBlocksFromStorage as loadBlocksFromStorageModule,
-  saveArchivedToStorage as saveArchivedToStorageModule,
-  loadArchivedFromStorage as loadArchivedFromStorageModule,
-  loadColorPresetsFromStorage as loadColorPresetsFromStorageModule,
-  saveColorPresetsToStorage as saveColorPresetsToStorageModule,
-  loadHiddenTimesFromStorage as loadHiddenTimesFromStorageModule,
-  saveHiddenTimesToStorage as saveHiddenTimesToStorageModule,
-  loadCategoriesFromStorage as loadCategoriesFromStorageModule,
-  saveCategoriesToStorage as saveCategoriesToStorageModule,
-  loadTemplatesFromStorage as loadTemplatesFromStorageModule,
-  saveTemplatesToStorage as saveTemplatesToStorageModule,
-
-  // Utils
-  generateUUID as generateUUIDModule,
-  formatDate as formatDateModule,
-  getWeekdayName as getWeekdayNameModule,
-  timeToMinutes as timeToMinutesModule,
-  convertTo12Hour as convertTo12HourModule,
-  randomColor as randomColorModule,
-  generateTimeSlots12 as generateTimeSlots12Module,
-  validateBlockDuration as validateBlockDurationModule,
-  timesOverlap as timesOverlapModule,
-  MIN_BLOCK_DURATION,
-  MAX_BLOCK_DURATION,
-
-  // Theme
-  initializeTheme as initializeThemeModule,
-
-  // Notifications
-  initializeNotifications as initializeNotificationsModule,
-  requestNotificationPermission as requestNotificationPermissionModule,
-  disableNotifications as disableNotificationsModule,
-  isNotificationsEnabled as isNotificationsEnabledModule,
-  setTimeBlocksRef,
-
-  // Time utilities
-  parseBlockTimes as parseBlockTimesModule,
-  convert24To12 as convert24To12Module,
-  convert12To24 as convert12To24Module,
-  findTimeRange12 as findTimeRange12Module,
-  computeTimeRangeFromSelection as computeTimeRangeFromSelectionModule,
-  findTableRowIndex as findTableRowIndexModule,
-  computeRowSpan as computeRowSpanModule,
-
-  // Search
-  performSearch as performSearchModule,
-  generateSearchResultsHTML as generateSearchResultsHTMLModule,
-
-  // Statistics
-  computeStatistics as computeStatisticsModule,
-  generateStatisticsHTML as generateStatisticsHTMLModule,
-
-  // Data import/export
-  formatDataAsJSON as formatDataAsJSONModule,
-  formatDataAsTxt as formatDataAsTxtModule,
-  validateImportData as validateImportDataModule,
-  downloadFile as downloadFileModule,
-  getExportFilename as getExportFilenameModule,
-
-  // Archive
-  autoArchiveOldBlocks as autoArchiveOldBlocksModule,
-  getSortedArchiveDates as getSortedArchiveDatesModule,
-  getArchivedBlocksForDay as getArchivedBlocksForDayModule,
-  formatArchiveDate as formatArchiveDateModule,
-  findMostRecentArchivedInstance as findMostRecentArchivedInstanceModule,
-  applyCarryOverData as applyCarryOverDataModule,
-
-  // Print
-  buildPrintContent as buildPrintContentModule,
-  getPrintTimestamp as getPrintTimestampModule
-} from './modules/index.js';
-
-// Note: Modules are imported but existing inline functions are preserved
-// for backward compatibility. Gradual migration can happen over time.
+// Block duration limits (in minutes). 30-min minimum matches the time-slot
+// granularity; 8-hour maximum prevents accidental day-spanning blocks.
+const MIN_BLOCK_DURATION = 30;
+const MAX_BLOCK_DURATION = 480;
 
 /***************************************************
 * Storage Functions (must be defined before use)

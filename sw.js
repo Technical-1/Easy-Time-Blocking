@@ -1,22 +1,11 @@
-const CACHE_NAME = 'time-blocking-v13';
+const CACHE_NAME = 'time-blocking-v14';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './script.js',
   './icon.svg',
-  './manifest.json',
-  './modules/index.js',
-  './modules/storage.js',
-  './modules/utils.js',
-  './modules/theme.js',
-  './modules/notifications.js',
-  './modules/time.js',
-  './modules/search.js',
-  './modules/statistics.js',
-  './modules/data.js',
-  './modules/archive.js',
-  './modules/print.js'
+  './manifest.json'
 ];
 
 // Install event - cache assets
