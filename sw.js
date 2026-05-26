@@ -1,4 +1,4 @@
-const CACHE_NAME = 'time-blocking-v14';
+const CACHE_NAME = 'time-blocking-v15';
 const urlsToCache = [
   './',
   './index.html',

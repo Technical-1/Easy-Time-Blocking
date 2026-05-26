@@ -2893,7 +2893,7 @@ timeSlots.forEach(label => {
     saveHiddenTimesToStorage(hiddenTimes);
     // Immediately update the daily view
     buildDailyTable();
-    setupBlockEventDelegation();
+    // Don't re-attach delegation here — listeners live on the persistent #daily-body parent.
     displayDailyBlocks();
   });
   row.appendChild(cb);
