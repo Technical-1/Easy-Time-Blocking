@@ -397,6 +397,77 @@ populateTemplateSelect();
 setupTemplateHandlers();
 
 /***************************************************
+* Cross-Tab State Sync (F18 / PH#480 / Bucket R)
+**************************************************/
+const bufferedStorageEvents = new Map();
+
+function isAppBusy() {
+  if (overlay && overlay.classList.contains("active")) return true;
+  if (settingsOverlay && settingsOverlay.classList.contains("active")) return true;
+  if (searchOverlay && searchOverlay.classList.contains("active")) return true;
+  const a = document.activeElement;
+  if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable)) return true;
+  return false;
+}
+
+function applyExternalStorageChange(key) {
+  switch (key) {
+    case "timeBlocks":
+      timeBlocks = loadBlocksFromStorage();
+      if (dailyView.classList.contains("active")) displayDailyBlocks();
+      break;
+    case "archivedBlocks":
+      archivedBlocks = loadArchivedFromStorage();
+      if (archiveView.classList.contains("active")) buildArchiveList();
+      if (dailyView.classList.contains("active")) displayDailyBlocks();
+      break;
+    case "hiddenTimes":
+      hiddenTimes = loadHiddenTimesFromStorage();
+      buildDailyTable();
+      if (dailyView.classList.contains("active")) displayDailyBlocks();
+      break;
+    case "categories":
+      categories = loadCategoriesFromStorage();
+      populateCategorySelect();
+      break;
+    case "blockTemplates":
+      blockTemplates = loadTemplatesFromStorage();
+      populateTemplateSelect();
+      break;
+    case "dailyTaskState":
+      if (dailyView.classList.contains("active")) displayDailyBlocks();
+      break;
+    case "theme":
+      applyTheme(localStorage.getItem("theme") || "auto");
+      break;
+    // colorPresets, etb_notifications: not user-visible per-tick.
+  }
+}
+
+function drainBufferedStorageEvents() {
+  if (bufferedStorageEvents.size === 0) return;
+  if (isAppBusy()) return;
+  const keys = Array.from(bufferedStorageEvents.keys());
+  bufferedStorageEvents.clear();
+  keys.forEach(applyExternalStorageChange);
+}
+
+window.addEventListener("storage", (e) => {
+  if (!e.key) return;  // storage.clear()
+  if (e.newValue === e.oldValue) return;
+  if (isAppBusy()) {
+    bufferedStorageEvents.set(e.key, e.newValue);
+    return;
+  }
+  applyExternalStorageChange(e.key);
+});
+
+// Drain on focusout so buffered events apply when the user finishes editing.
+document.addEventListener("focusout", () => {
+  setTimeout(drainBufferedStorageEvents, 0);
+});
+
+/***************************************************
 * Browser Notifications
 **************************************************/
 function loadNotificationPreference() {
