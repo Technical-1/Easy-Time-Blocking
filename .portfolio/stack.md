@@ -4,7 +4,7 @@
 
 | Category | Technology | Version | Why this choice |
 |----------|------------|---------|-----------------|
-| Language | JavaScript | ES6+ (native modules) | No build step required; browser runs the source directly |
+| Language | JavaScript | ES2022 | No build step required; browser runs the source directly |
 | Markup | HTML5 | — | Single `index.html` hosts every view |
 | Styling | CSS3 | — | Custom properties drive theming without JS |
 | Storage | `localStorage` | Web Storage API | Synchronous JSON-friendly persistence, no setup |
@@ -12,8 +12,8 @@
 
 ## Frontend
 
-- **Framework**: None — vanilla JS with native ES modules
-- **State management**: Plain JS objects mirrored to `localStorage`
+- **Framework**: None — vanilla JS served as a module
+- **State management**: Plain JS objects mirrored to `localStorage`, with a `storage`-event listener for cross-tab convergence
 - **Styling**: Hand-written CSS with custom properties for theming
 - **Build tool**: None — files are served as-authored
 
@@ -80,21 +80,29 @@ timeBlocks: {
     notes: "string",
     color: "#hex",
     category: "categoryId",
-    tasks: [{ text: "string", completed: boolean }],
+    tasks: [{ id: "uuid", text: "string", completed: boolean }],
     recurring: boolean,
     recurrenceDays: ["Mon", "Wed", ...],
     carryOver: boolean,
     preserveTaskState: boolean,
     startTime: "YYYY-MM-DDTHH:mm",
-    endTime: "YYYY-MM-DDTHH:mm",
-    archived: boolean
+    endTime: "YYYY-MM-DDTHH:mm"
   }]
 }
 
-// Archived blocks grouped by date
+// Archived blocks grouped by date.
+// For recurring instances, startTime's date portion always matches the day key.
 archivedBlocks: {
   days: {
     "YYYY-MM-DD": [block, block, ...]
+  }
+}
+
+// Per-day task completion overrides, keyed by taskId (not text).
+// Used so recurring blocks can have independent completion state per day.
+dailyTaskState: {
+  "YYYY-MM-DD": {
+    "blockId": { "taskId": true | false }
   }
 }
 
@@ -104,6 +112,7 @@ categories: [{ id, name, color }]
 blockTemplates: [{ title, notes, tasks, color }]
 hiddenTimes: ["12:00 AM", "12:30 AM", ...]
 theme: "auto" | "light" | "dark"
+etb_notifications: "true" | "false"
 ```
 
 ### `localStorage` vs IndexedDB
@@ -123,11 +132,12 @@ There are no runtime dependencies. The app's "dependencies" are the platform API
 
 | Common library | What this project uses instead |
 |----------------|--------------------------------|
-| Moment.js / date-fns | `modules/time.js` (~100 lines) |
-| UUID library | `crypto.randomUUID()` with a small fallback |
-| Lodash `debounce` | A 10-line debounce in `modules/utils.js` |
+| Moment.js / date-fns | A handful of inline time helpers in `script.js` (~100 lines) |
+| UUID library | `crypto.randomUUID()` |
+| Lodash `debounce` | A ~10-line inline `debounce` |
 | CSS-in-JS | CSS custom properties in `styles.css` |
-| Redux / Zustand | Plain objects synced to `localStorage` |
+| Redux / Zustand | Plain objects synced to `localStorage` + `storage`-event cross-tab sync |
+| Focus-trap libraries | Native `inert` attribute toggled by a `MutationObserver` |
 
 ## Running Locally
 
@@ -157,9 +167,11 @@ git push origin main
 
 Required platform features used throughout the codebase:
 
-- `crypto.randomUUID()` for block IDs (with a fallback)
-- CSS `prefers-color-scheme` for auto dark mode
+- `crypto.randomUUID()` for block and task IDs
+- CSS `prefers-color-scheme` and `matchMedia` for auto dark mode
 - Native `<input type="color">` for color picking
 - `Notification` API for pre-block reminders
-- Service Worker for offline support
-- ES6 modules via `<script type="module">`
+- Service Worker for offline support, with `updatefound` driving an in-page reload toast
+- `storage` event on `window` for cross-tab convergence
+- `MutationObserver` and the `inert` attribute (Safari 15.5+) for modal focus containment
+- ES2022 features served as a module via `<script type="module">`

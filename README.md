@@ -77,25 +77,14 @@ git push origin main
 
 ```
 Easy-Time-Blocking/
-├── index.html          # Single HTML file with all markup
-├── script.js           # Main application logic (~3700 lines)
+├── index.html          # Single HTML file with all markup and views
+├── script.js           # Main application logic (~4100 lines)
 ├── styles.css          # Complete styling with CSS custom properties
-├── modules/            # ES6 modules extracted from script.js
-│   ├── index.js        # Re-exports all modules
-│   ├── storage.js      # localStorage operations
-│   ├── utils.js        # Common utilities (UUID, formatting)
-│   ├── time.js         # Time parsing and conversion
-│   ├── search.js       # Search functionality
-│   ├── statistics.js   # Stats calculations
-│   ├── data.js         # Import/export
-│   ├── archive.js      # Archiving logic
-│   ├── print.js        # Print formatting
-│   ├── theme.js        # Dark mode support
-│   └── notifications.js # Browser notifications
 ├── manifest.json       # PWA manifest for installability
 ├── sw.js               # Service worker for offline support
 ├── icon.svg            # App icon
-└── jk-logo.svg         # Footer logo
+├── jk-logo.svg         # Footer logo
+└── assets/             # Favicons and social preview images
 ```
 
 ## Privacy
