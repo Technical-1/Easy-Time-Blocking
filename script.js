@@ -305,11 +305,36 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
       .then((registration) => {
         console.log('ServiceWorker registered:', registration.scope);
+        // F23/PH#485: surface an update prompt when a new SW is waiting.
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              showUpdateAvailableToast();
+            }
+          });
+        });
       })
       .catch((error) => {
         console.log('ServiceWorker registration failed:', error);
       });
   });
+}
+
+function showUpdateAvailableToast() {
+  if (document.getElementById("sw-update-toast")) return;
+  const toast = document.createElement("div");
+  toast.id = "sw-update-toast";
+  toast.setAttribute("role", "status");
+  toast.style.cssText = "position:fixed;bottom:20px;right:20px;background:#4F6D7A;color:#fff;padding:12px 16px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:2000;display:flex;gap:12px;align-items:center;font-size:0.9rem;";
+  toast.textContent = "New version available";
+  const reloadBtn = document.createElement("button");
+  reloadBtn.textContent = "Reload";
+  reloadBtn.style.cssText = "background:#fff;color:#4F6D7A;border:none;padding:6px 12px;border-radius:4px;font-weight:600;cursor:pointer;";
+  reloadBtn.addEventListener("click", () => location.reload());
+  toast.appendChild(reloadBtn);
+  document.body.appendChild(toast);
 }
 
 // Handle PWA install prompt
@@ -1085,6 +1110,12 @@ function initializeTheme() {
       saveThemePreference(theme);
     });
   });
+
+  // F25: re-apply when system theme flips, but only when the user chose "auto".
+  const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+  darkQuery.addEventListener("change", () => {
+    if (loadThemePreference() === "auto") applyTheme("auto");
+  });
 }
 
 function loadThemePreference() {
@@ -1114,6 +1145,12 @@ function applyTheme(theme) {
     // Auto - remove attribute to use system preference via CSS media query
     root.removeAttribute("data-theme");
   }
+
+  // F25: sync the PWA chrome color (address-bar / status-bar) with the body theme.
+  const isDark = theme === "dark" ||
+                 (theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", isDark ? "#2d4a57" : "#4F6D7A");
 }
 
 /***************************************************
